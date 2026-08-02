@@ -9672,7 +9672,7 @@ func draw_result_screen() -> void:
 	var victory: bool = screen == "victory"
 	var root: Rect2 = Rect2(175, 52, 930, 616)
 	draw_panel(root, Color(0.035, 0.04, 0.039, 0.985), Color8(190, 151, 81) if victory else Color8(157, 74, 61), 2.2)
-	draw_text("章回告捷" if victory else "亂世夢斷", Vector2(640, 105), 43, Color8(237, 205, 132) if victory else Color8(209, 98, 76), true, HORIZONTAL_ALIGNMENT_CENTER, 720)
+	draw_centered_text("章回告捷" if victory else "亂世夢斷", Rect2(root.position.x + 40, root.position.y + 22, root.size.x - 80, 62), 48.0, 43, Color8(237, 205, 132) if victory else Color8(209, 98, 76), true)
 	draw_wrapped(game_over_reason, Rect2(255, 128, 770, 58), 18, Color8(222, 220, 204), 26.0, true)
 	var stats_rect: Rect2 = Rect2(225, 205, 510, 280)
 	var reward_rect: Rect2 = Rect2(760, 205, 295, 280)
@@ -9691,8 +9691,8 @@ func draw_result_screen() -> void:
 	draw_text("本章收穫", reward_rect.position + Vector2(24, 37), 21, Color8(233, 215, 173), true)
 	if victory and chapter_reward_relic != "" and relic_defs.has(chapter_reward_relic):
 		draw_texture_contain(relic_tex[chapter_reward_relic], Rect2(reward_rect.position + Vector2(87, 58), Vector2(120, 120)))
-		draw_text("%s　Lv.%d" % [str(relic_defs[chapter_reward_relic]["name"]), relic_level(chapter_reward_relic)], reward_rect.position + Vector2(147, 205), 20, Color8(239, 214, 155), true, HORIZONTAL_ALIGNMENT_CENTER, 250)
-		draw_wrapped(str(relic_defs[chapter_reward_relic].get("desc", "")), Rect2(reward_rect.position + Vector2(24, 218), Vector2(247, 48)), 12, Color8(190, 198, 190), 17.0, true)
+		draw_centered_text("%s　Lv.%d" % [str(relic_defs[chapter_reward_relic]["name"]), relic_level(chapter_reward_relic)], Rect2(reward_rect.position + Vector2(18, 186), Vector2(reward_rect.size.x - 36, 38)), 27.0, 20, Color8(239, 214, 155), true)
+		draw_wrapped(str(relic_defs[chapter_reward_relic].get("desc", "")), Rect2(reward_rect.position + Vector2(24, 224), Vector2(reward_rect.size.x - 48, 42)), 12, Color8(190, 198, 190), 17.0, true)
 	else:
 		draw_centered_text("整軍再戰", reward_rect, 145.0, 19, Color8(170, 178, 170))
 	var options: Array[String] = result_options()
