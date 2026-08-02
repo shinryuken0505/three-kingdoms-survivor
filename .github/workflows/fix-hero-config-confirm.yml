@@ -1,0 +1,38 @@
+name: Fix hero config confirm
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/fix_hero_config_confirm.py
+      - .github/workflows/fix-hero-config-confirm.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply hero config confirm fix
+        run: python tools/fix_hero_config_confirm.py
+
+      - name: Commit repaired behavior
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "fix: make confirm toggle reserve and camp"
+          git push origin feature/alpha17-ending
