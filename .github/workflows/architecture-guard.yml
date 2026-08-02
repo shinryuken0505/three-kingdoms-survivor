@@ -1,0 +1,30 @@
+name: Architecture Guard
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - "scripts/**"
+      - "tools/architecture_guard.py"
+      - ".github/workflows/architecture-guard.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "tools/architecture_guard.py"
+      - ".github/workflows/architecture-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check architecture invariants
+        run: python tools/architecture_guard.py
