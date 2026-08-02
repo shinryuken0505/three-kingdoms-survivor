@@ -8,6 +8,8 @@ const HistoryEventData = preload("res://scripts/history_event_data.gd")
 const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rules.gd")
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
+const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
+const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const GAME_VERSION: String = "V2.0.0-alpha.17"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
@@ -9621,76 +9623,10 @@ func ending_equipment_summary() -> String:
 
 
 func draw_ending_screen() -> void:
-	draw_rect(Rect2(Vector2.ZERO, VIEW), Color8(17, 20, 20), true)
-	var root: Rect2 = Rect2(90, 42, 1100, 636)
-	draw_panel(root, Color(0.025, 0.03, 0.029, 0.99), Color8(206, 169, 91), 2.4)
-	draw_text("亂世終卷", Vector2(640, 92), 25, Color8(183, 170, 135), true, HORIZONTAL_ALIGNMENT_CENTER, 620)
-	draw_text(str(ending_snapshot.get("title", "亂世見證者")), Vector2(640, 142), 43, Color8(244, 215, 151), true, HORIZONTAL_ALIGNMENT_CENTER, 900)
-	draw_wrapped(str(ending_snapshot.get("narration", "")), Rect2(150, 166, 980, 82), 18, Color8(221, 221, 207), 27.0, true)
-	var left: Rect2 = Rect2(140, 270, 480, 260)
-	var right: Rect2 = Rect2(660, 270, 480, 260)
-	draw_panel(left, Color(0.04, 0.046, 0.044, 0.96), Color8(116, 103, 72), 1.3)
-	draw_panel(right, Color(0.04, 0.046, 0.044, 0.96), Color8(116, 103, 72), 1.3)
-	var stats: Dictionary = ending_snapshot.get("stats", {}) as Dictionary
-	var seconds: int = int(float(ending_snapshot.get("elapsed", 0.0)))
-	var left_lines: Array[String] = [
-		"最終章　%s" % str(ending_snapshot.get("chapter_title", "")),
-		"遊玩時間　%02d:%02d:%02d" % [seconds / 3600, (seconds / 60) % 60, seconds % 60],
-		"擊敗敵軍　%d" % int(stats.get("kills", 0)),
-		"造成傷害　%d" % int(stats.get("damage_dealt", 0.0)),
-		"承受傷害　%d" % int(stats.get("damage_taken", 0.0))
-	]
-	for i in range(left_lines.size()):
-		draw_text(left_lines[i], left.position + Vector2(24, 42 + i * 42), 17, Color8(223, 212, 184), i == 0)
-	draw_text("同行群英", right.position + Vector2(24, 40), 21, Color8(235, 211, 157), true)
-	draw_wrapped("主動：%s\n後備：%s" % [ending_hero_names(ending_snapshot.get("active_heroes", [])), ending_hero_names(ending_snapshot.get("reserve_heroes", []))], Rect2(right.position + Vector2(24, 58), Vector2(432, 78)), 16, Color8(207, 214, 204), 24.0)
-	draw_text("最終裝備", right.position + Vector2(24, 158), 19, Color8(235, 211, 157), true)
-	draw_wrapped(ending_equipment_summary(), Rect2(right.position + Vector2(24, 176), Vector2(432, 58)), 15, Color8(194, 204, 194), 22.0)
-	draw_wrapped("史官評曰：%s" % str(ending_snapshot.get("historian_comment", "")), Rect2(145, 548, 990, 54), 16, Color8(212, 194, 151), 23.0, true)
-	var button: Rect2 = Rect2(485, 612, 310, 50)
-	draw_panel(button, Color(0.48, 0.34, 0.13, 0.94), Color8(235, 204, 137), 1.8)
-	draw_centered_text("返回主選單", button, 33.0, 20, Color8(245, 231, 198), true)
-
+	EndingUIScript.draw(self, ending_snapshot)
 
 func draw_boss_loot_screen() -> void:
-	draw_rect(Rect2(Vector2.ZERO, VIEW), Color8(22, 25, 24), true)
-	var panel: Rect2 = Rect2(180, 72, 920, 570)
-	draw_panel(panel, Color(0.035, 0.04, 0.039, 0.99), Color8(213, 169, 76), 2.4)
-
-	var header: Rect2 = Rect2(235, 92, 810, 94)
-	draw_text("敵將擊破", header.position + Vector2(0, 42), 43, Color8(244, 210, 132), true, HORIZONTAL_ALIGNMENT_CENTER, header.size.x)
-	draw_text(str(pending_boss_loot.get("boss_name", "敵將")), header.position + Vector2(0, 78), 24, Color8(222, 217, 199), true, HORIZONTAL_ALIGNMENT_CENTER, header.size.x)
-
-	var relic_id: String = str(pending_boss_loot.get("relic", ""))
-	var equipment_id: String = str(pending_boss_loot.get("equipment", ""))
-	var left: Rect2 = Rect2(235, 205, 375, 270)
-	var right: Rect2 = Rect2(670, 205, 375, 270)
-
-	draw_panel(left, Color(0.045, 0.05, 0.05, 0.96), Color8(135, 118, 83), 1.3)
-	draw_text("遺物戰利品", left.position + Vector2(24, 34), 21, Color8(221, 205, 165), true)
-	if relic_id != "" and relic_defs.has(relic_id):
-		draw_texture_contain(relic_tex[relic_id], Rect2(left.position + Vector2(126, 58), Vector2(120, 120)))
-		var relic_name: String = "%s　Lv.%d" % [str(relic_defs[relic_id]["name"]), relic_level(relic_id) + 1 if has_relic(relic_id) else 1]
-		draw_text(relic_name, left.position + Vector2(24, 204), 20, relic_rarity_color(str(relic_defs[relic_id].get("rarity", "common"))), true, HORIZONTAL_ALIGNMENT_CENTER, left.size.x - 48)
-		draw_wrapped(str(relic_defs[relic_id]["desc"]), Rect2(left.position + Vector2(24, 218), Vector2(left.size.x - 48, 42)), 12, Color8(193, 200, 192), 17.0, true)
-
-	draw_panel(right, Color(0.045, 0.05, 0.05, 0.96), Color8(135, 118, 83), 1.3)
-	draw_text("裝備掉落", right.position + Vector2(24, 34), 21, Color8(221, 205, 165), true)
-	if equipment_id != "" and equipment_defs.has(equipment_id):
-		var edef: Dictionary = equipment_defs[equipment_id]
-		draw_texture_contain(equipment_tex[equipment_id], Rect2(right.position + Vector2(126, 58), Vector2(120, 120)))
-		var equipment_name: String = "%s｜%s" % [equipment_slot_name(str(edef["slot"])), edef["name"]]
-		draw_text(equipment_name, right.position + Vector2(24, 204), 20, relic_rarity_color(str(edef.get("rarity", "common"))), true, HORIZONTAL_ALIGNMENT_CENTER, right.size.x - 48)
-		draw_wrapped(str(edef["desc"]), Rect2(right.position + Vector2(24, 218), Vector2(right.size.x - 48, 42)), 12, Color8(193, 200, 192), 17.0, true)
-	else:
-		draw_centered_text("本次未掉落裝備", right, 145.0, 18, Color8(146, 153, 146))
-
-	var coin_rect: Rect2 = Rect2(390, 492, 500, 42)
-	draw_centered_text("銅錢 +%d" % int(pending_boss_loot.get("coins", 0)), coin_rect, 28.0, 20, Color8(239, 202, 105), true)
-	var button: Rect2 = Rect2(480, 550, 320, 58)
-	draw_rect(button, Color(0.48, 0.34, 0.13, 0.92), true)
-	draw_centered_text("收下戰利品", button, 37.0, 22, Color8(244, 229, 193), true)
-
+	BossLootUIScript.draw(self, pending_boss_loot)
 
 func draw_result_screen() -> void:
 	draw_rect(Rect2(Vector2.ZERO, VIEW), Color8(27, 30, 29), true)
