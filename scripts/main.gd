@@ -93,6 +93,8 @@ var save_data: Dictionary = {
 	"unlocked_bonds": {},
 	"selected_skins": {},
 	"run_save": {},
+	"endings": {},
+	"latest_ending": {},
 	"settings": {
 		"bgm": 0.70,
 		"sfx": 0.80,
@@ -661,6 +663,10 @@ func normalize_save_document(parsed_data: Dictionary) -> Dictionary:
 		normalized["selected_skins"] = parsed_data.get("selected_skins", {})
 	if parsed_data.get("run_save", {}) is Dictionary:
 		normalized["run_save"] = parsed_data.get("run_save", {})
+	if parsed_data.get("endings", {}) is Dictionary:
+		normalized["endings"] = parsed_data.get("endings", {})
+	if parsed_data.get("latest_ending", {}) is Dictionary:
+		normalized["latest_ending"] = parsed_data.get("latest_ending", {})
 	if parsed_data.get("settings", {}) is Dictionary:
 		for key in parsed_data.get("settings", {}) as Dictionary:
 			if normalized["settings"].has(key):
@@ -6771,11 +6777,11 @@ func boss_special_attack() -> void:
 						"shield_pierce": 0.20
 					}
 				)
-			show_boss_ability("赤兔——隨我踏破此陣！", 2.0)
+			show_boss_ability("敵將猛攻——避開殺陣！", 2.0)
 
 
 func end_run(victory: bool) -> void:
-	if screen in ["game_over", "victory", "intermission"]:
+	if screen in ["game_over", "victory", "ending", "intermission"]:
 		return
 	enemy_shots.clear()
 	player_shots.clear()
@@ -7534,7 +7540,7 @@ func draw_menu_screen() -> void:
 	draw_text("三國人生錄", Vector2(88, 111), 49, Color8(242, 218, 166), true)
 	draw_text("亂世倖存", Vector2(91, 158), 25, Color8(206, 216, 205), true)
 	draw_line(Vector2(90, 176), Vector2(710, 176), Color(0.77, 0.61, 0.31, 0.55), 1.5)
-	draw_text("V1.7.5・戰場可讀性與Boss演出強化版", Vector2(91, 207), 15, Color8(170, 183, 173))
+	draw_text("V2.0.0 Alpha.17・亂世終卷", Vector2(91, 207), 15, Color8(170, 183, 173))
 	var seal: Rect2 = Rect2(672, 72, 54, 72)
 	draw_panel(seal, Color(0.34, 0.055, 0.045, 0.92), Color8(205, 119, 94), 1.6)
 	draw_centered_text("亂
@@ -9549,6 +9555,11 @@ func finalize_campaign_ending() -> void:
 		"rewrite_rate": history_rewrite_rate
 	}
 	ending_snapshot = ending_manager.build_snapshot(context)
+	var ending_id: String = str(ending_snapshot.get("ending_id", "historical_witness"))
+	if not (save_data.get("endings", {}) is Dictionary):
+		save_data["endings"] = {}
+	(save_data["endings"] as Dictionary)[ending_id] = ending_snapshot.duplicate(true)
+	save_data["latest_ending"] = ending_snapshot.duplicate(true)
 	chapter_manager.resolve_chapter()
 	game_over_reason = "擊敗%s，亂世旅程寫下最終一頁。" % str(definition.get("name", "最終敵將"))
 	pending_boss_loot.clear()
