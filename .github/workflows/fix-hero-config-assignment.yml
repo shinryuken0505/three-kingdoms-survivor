@@ -1,0 +1,38 @@
+name: Fix hero config assignment
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/fix_hero_config_assignment.py
+      - .github/workflows/fix-hero-config-assignment.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply hero config fix
+        run: python tools/fix_hero_config_assignment.py
+
+      - name: Commit repaired controls
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "fix: enable camp to reserve hero assignment"
+          git push origin feature/alpha17-ending
