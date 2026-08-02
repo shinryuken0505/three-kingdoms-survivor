@@ -1,0 +1,37 @@
+name: Fix Hero Position Picker Visibility
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/fix_hero_position_picker_visibility.py
+      - .github/workflows/fix-hero-position-picker-visibility.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply picker visibility fix
+        run: python tools/fix_hero_position_picker_visibility.py
+
+      - name: Commit generated changes
+        run: |
+          if git diff --quiet -- scripts/main.gd; then
+            echo "No generated changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "fix: show hero roster position picker"
+          git push origin HEAD:feature/alpha17-ending
