@@ -1,0 +1,35 @@
+name: Remove duplicate roster helpers
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/remove_duplicate_roster_helpers.py
+      - .github/workflows/remove-duplicate-roster-helpers.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+      - name: Remove duplicate helper block
+        run: python tools/remove_duplicate_roster_helpers.py
+      - name: Commit cleanup
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "fix: remove duplicated hero roster helpers"
+          git push origin feature/alpha17-ending
