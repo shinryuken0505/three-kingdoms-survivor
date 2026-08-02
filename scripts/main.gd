@@ -3656,53 +3656,10 @@ func hero_role(hid: String) -> String:
 		"zhangjiao": "雷法・傳毒",
 		"diaochan": "魅惑・牽引",
 		"sunshangxiang": "連射・火箭",
-		"zhenji":
-			play_sfx("hero", 0.92)
-			# 甄姬改為前方洛水冰河，沿直線留下連續冰霜區。
-			var radius: float = 92.0 + lv * 3.0
-			for segment in range(5):
-				var frost_pos: Vector2 = center + dir * (105.0 + segment * 95.0)
-				zones.append(
-					{
-						"kind": "frost",
-						"pos": frost_pos,
-						"r": radius,
-						"life": 4.0,
-						"tick": 0.0,
-						"damage": 4.0 + lv * 0.8
-					}
-				)
-			for i in range(enemies.size()):
-				var ep: Vector2 = enemies[i]["pos"]
-				var along: float = clamp((ep - center).dot(dir), 0.0, 560.0)
-				var closest: Vector2 = center + dir * along
-				if along > 0.0 and ep.distance_to(closest) < radius:
-					enemies[i]["slow"] = 3.2 + lv * 0.2
-					if lv >= 3:
-						enemies[i]["stun"] = max(float(enemies[i]["stun"]), 0.65)
-			zones.append({"kind":"hero_line_visual", "pos":center, "end":center + dir * 560.0, "width":radius * 1.4, "life":0.58, "max_life":0.58, "color":heroes[hid]["color"]})
-			show_message("甄姬・洛水凝霜（冰河封路）", 1.5)
+		"zhenji": "冰霜・控場",
 		"lvlingqi": "突擊・爆發",
 		"wangyi": "回刃・暴擊",
-		"caiwenji":
-			play_sfx("heal", 0.88)
-			heal_player(10.0 + lv * 3.0)
-			# 胡笳清音改成三段前方音波扇形，保留回復但不再全周震波。
-			for wave in range(3):
-				var wave_radius: float = 180.0 + wave * 85.0
-				for i in range(enemies.size() - 1, -1, -1):
-					if i >= enemies.size():
-						continue
-					var diff: Vector2 = enemies[i]["pos"] - center
-					if diff.length() <= wave_radius and abs(wrapf(diff.angle() - dir.angle(), -PI, PI)) <= 0.78:
-						var live_index: int = damage_enemy(i, 8.0 + lv * 2.2, "caiwenji", false)
-						if live_index >= 0:
-							enemies[live_index]["knock"] += dir * (170.0 + wave * 35.0)
-				# 用三條扇面邊線呈現音波，不再畫完整圓圈。
-				for edge in [-0.78, 0.0, 0.78]:
-					var wave_dir: Vector2 = dir.rotated(edge)
-					zones.append({"kind":"hero_line_visual", "pos":center, "end":center + wave_dir * wave_radius, "width":12.0 + wave * 5.0, "life":0.38 + wave * 0.06, "max_life":0.38 + wave * 0.06, "color":heroes[hid]["color"]})
-			show_message("蔡文姬・胡笳清音（扇形音波）", 1.5)
+		"caiwenji": "治療・音波",
 		"daqiao": "屏障・反射"
 	}
 	return str(roles.get(hid, "名將之力"))
