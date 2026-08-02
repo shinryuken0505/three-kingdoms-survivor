@@ -17,14 +17,14 @@ const ACTION_CONFIRM_REPLACEMENT: StringName = &"confirm_replacement"
 const ACTION_CANCEL_REPLACEMENT: StringName = &"cancel_replacement"
 const ACTION_ALREADY_ASSIGNED: StringName = &"already_assigned"
 
-const TARGETS: Array[String] = [
-	HeroRosterManager.STATE_ACTIVE,
-	HeroRosterManager.STATE_RESERVE,
-	HeroRosterManager.STATE_CAMP,
+const TARGETS: Array[StringName] = [
+	HeroRosterManager.ACTIVE,
+	HeroRosterManager.RESERVE,
+	HeroRosterManager.CAMP,
 ]
 
 
-static func open_picker_for(hero_id: String, current_state: String) -> Dictionary:
+static func open_picker_for(hero_id: String, current_state: StringName) -> Dictionary:
 	var index: int = TARGETS.find(current_state)
 	if index < 0:
 		index = 2
@@ -48,8 +48,8 @@ static func resolve_target(
 	if target_index < 0 or target_index >= TARGETS.size():
 		return {"action": ACTION_CLOSE_POSITION_PICKER, "reason": "cancelled"}
 
-	var target_state: String = TARGETS[target_index]
-	var current_state: String = HeroRosterManager.state_of(hero_id, active, reserve, camp)
+	var target_state: StringName = TARGETS[target_index]
+	var current_state: StringName = HeroRosterManager.state_of(hero_id, active, reserve, camp)
 	if target_state == current_state:
 		return {
 			"action": ACTION_ALREADY_ASSIGNED,
@@ -57,19 +57,19 @@ static func resolve_target(
 			"state": current_state,
 		}
 
-	if target_state == HeroRosterManager.STATE_ACTIVE and active.size() >= active_capacity:
+	if target_state == HeroRosterManager.ACTIVE and active.size() >= active_capacity:
 		return {
 			"action": ACTION_OPEN_REPLACEMENT,
 			"hero_id": hero_id,
-			"mode": HeroRosterManager.STATE_ACTIVE,
+			"mode": HeroRosterManager.ACTIVE,
 			"pool_size": active.size(),
 		}
 
-	if target_state == HeroRosterManager.STATE_RESERVE and reserve.size() >= reserve_capacity:
+	if target_state == HeroRosterManager.RESERVE and reserve.size() >= reserve_capacity:
 		return {
 			"action": ACTION_OPEN_REPLACEMENT,
 			"hero_id": hero_id,
-			"mode": HeroRosterManager.STATE_RESERVE,
+			"mode": HeroRosterManager.RESERVE,
 			"pool_size": reserve.size(),
 		}
 
@@ -83,12 +83,12 @@ static func resolve_target(
 
 static func resolve_replacement(
 	candidate_id: String,
-	mode: String,
+	mode: StringName,
 	selected_index: int,
 	active: Array,
 	reserve: Array
 ) -> Dictionary:
-	var pool: Array = active if mode == HeroRosterManager.STATE_ACTIVE else reserve
+	var pool: Array = active if mode == HeroRosterManager.ACTIVE else reserve
 	if selected_index < 0 or selected_index >= pool.size():
 		return {
 			"action": ACTION_CANCEL_REPLACEMENT,
