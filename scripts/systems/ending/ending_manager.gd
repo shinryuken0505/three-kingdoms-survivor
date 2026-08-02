@@ -24,6 +24,7 @@ func build_snapshot(context: Dictionary) -> Dictionary:
 		"equipment": _dictionary_copy(context.get("equipment", {})),
 		"history_log": _string_array(context.get("history_log", [])),
 		"route_tags": _dictionary_copy(context.get("route_tags", {})),
+		"faction_momentum": _dictionary_copy(context.get("faction_momentum", {})),
 		"rewrite_rate": float(context.get("rewrite_rate", 0.0)),
 		"created_at": Time.get_datetime_string_from_system()
 	}
@@ -56,7 +57,8 @@ func _matches(definition: Dictionary, context: Dictionary) -> bool:
 		if not bool(route_tags.get(required_tag, false)):
 			return false
 		var momentum: Dictionary = _dictionary_copy(context.get("faction_momentum", {}))
-		if int(momentum.get(required_tag, 0)) < int(requirements.get("min_momentum", 0)):
+		var momentum_key: String = str({"han": "蜀", "wei": "魏", "wu": "吳"}.get(required_tag, required_tag))
+		if int(momentum.get(momentum_key, 0)) < int(requirements.get("min_momentum", 0)):
 			return false
 	return true
 
