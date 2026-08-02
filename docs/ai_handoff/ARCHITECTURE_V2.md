@@ -198,8 +198,16 @@ scripts/data/data_validator.gd
 ```text
 scripts/systems/hero/hero_roster_manager.gd
 scripts/systems/hero/hero_roster_controller.gd
+scripts/systems/hero/hero_roster_session.gd
 scripts/systems/hero/hero_roster_view_model.gd
 ```
+
+職責分工：
+
+- `HeroRosterManager`：正式編成資料與移動／替換規則。
+- `HeroRosterController`：把玩家意圖轉成 action，不直接修改正式資料。
+- `HeroRosterSession`：只保存游標、候選名將與彈窗等暫存狀態；不得寫入存檔。
+- `HeroRosterViewModel`：把 system 資料整理成 UI 可讀格式。
 
 UI 逐步拆為：
 
@@ -216,6 +224,8 @@ scripts/ui/screens/hero_replace_screen.gd
 - 營地不限容量。
 - 同一名將不可同時存在於兩個陣列。
 - UI 只送出意圖，system 回傳結果。
+- `HeroRosterSession` 僅屬畫面生命週期，離開整備畫面時必須重設。
+- 對 session 的純狀態行為至少以 `tests/hero_roster_session_test.gd` 覆蓋。
 
 ## 9. 狀態效果系統契約
 
@@ -267,7 +277,7 @@ scripts/systems/save/save_validator.gd
 每階段通過 Godot Check 與本機 F5 後才進下一階段：
 
 1. **基礎層**：畫面 ID、本地化服務、架構文件。
-2. **名將整備**：規則、Controller、ViewModel、renderer 分離。
+2. **名將整備**：規則、Controller、Session、ViewModel、renderer 分離。
 3. **共用 UI 元件**：Panel、Modal、選項、狀態徽章、文字排版。
 4. **章間與結果 UI**：修正排版並改用共用元件。
 5. **招賢館統一編成**：接入名將 system。
