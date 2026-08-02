@@ -7,6 +7,7 @@ const ChapterManagerScript = preload("res://scripts/chapter_manager.gd")
 const HistoryEventData = preload("res://scripts/history_event_data.gd")
 const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rules.gd")
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
+const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
@@ -1640,29 +1641,6 @@ func close_hero_config() -> void:
 	play_sfx("ui_move")
 
 
-func cycle_support_assignment(hid: String) -> void:
-	if active_heroes.has(hid):
-		return
-	if reserve_heroes.has(hid):
-		reserve_heroes.erase(hid)
-		if not camp_heroes.has(hid):
-			camp_heroes.append(hid)
-		show_message("%s轉入營地，不再提供後備被動。" % heroes[hid]["name"], 2.4)
-	else:
-		camp_heroes.erase(hid)
-		if reserve_heroes.size() < reserve_limit():
-			reserve_heroes.append(hid)
-			show_message("%s編入後備，開始提供被動與羈絆。" % heroes[hid]["name"], 2.4)
-		else:
-			if not camp_heroes.has(hid):
-				camp_heroes.append(hid)
-			show_message("後備欄已滿（%d／%d）。" % [reserve_heroes.size(), reserve_limit()], 2.2)
-	update_bonds()
-	play_sfx("ui_confirm")
-	if hero_config_origin == "intermission":
-		save_run_checkpoint()
-
-
 func assign_hero_roster(hid: String, target: String) -> void:
 	if not heroes.has(hid):
 		return
@@ -1709,44 +1687,53 @@ func assign_hero_roster(hid: String, target: String) -> void:
 		save_run_checkpoint()
 
 
-func assign_hero_to_reserve(hid: String) -> void:
-	if reserve_heroes.has(hid):
-		show_message("%s已在後備被動欄。" % heroes[hid]["name"], 1.8)
-		return
-	if reserve_heroes.size() >= reserve_limit():
-		show_message("後備欄已滿，請先將一名後備武將移回營地。", 2.4)
-		play_sfx("ui_error")
-		return
-	active_heroes.erase(hid)
-	camp_heroes.erase(hid)
-	hero_cooldowns.erase(hid)
-	reserve_heroes.append(hid)
+
+func hero_roster_state(hid: String) -> String:
+	return HeroRosterManagerScript.state_of(hid, active_heroes, reserve_heroes, camp_heroes)
+
+
+func sync_roster_after_change() -> void:
 	update_bonds()
-	show_message("%s編入後備，開始提供被動與羈絆。" % heroes[hid]["name"], 2.4)
-	play_sfx("ui_confirm")
 	if hero_config_origin == "intermission":
 		save_run_checkpoint()
+
+
+func assign_hero_to_reserve(hid: String) -> void:
+	var result: Dictionary = HeroRosterManagerScript.move_to_reserve(
+		hid, active_heroes, reserve_heroes, camp_heroes, reserve_limit()
+	)
+	match str(result.get("reason", "")):
+		"already_reserve":
+			show_message("%s已在後備被動欄。" % heroes[hid]["name"], 1.8)
+			return
+		"reserve_full":
+			show_message("後備欄已滿，請先將一名後備武將移回營地。", 2.4)
+			play_sfx("ui_error")
+			return
+	if bool(result.get("changed", false)):
+		hero_cooldowns.erase(hid)
+		sync_roster_after_change()
+		show_message("%s編入後備，開始提供被動與羈絆。" % heroes[hid]["name"], 2.4)
+		play_sfx("ui_confirm")
 
 
 func assign_hero_to_camp(hid: String) -> void:
-	if camp_heroes.has(hid):
-		show_message("%s已在營地待命。" % heroes[hid]["name"], 1.8)
+	var result: Dictionary = HeroRosterManagerScript.move_to_camp(
+		hid, active_heroes, reserve_heroes, camp_heroes
+	)
+	if str(result.get("reason", "")) == "already_camp":
+		show_message("%s目前已在營地待命。" % heroes[hid]["name"], 1.8)
 		return
-	active_heroes.erase(hid)
-	reserve_heroes.erase(hid)
-	hero_cooldowns.erase(hid)
-	if not camp_heroes.has(hid):
-		camp_heroes.append(hid)
-	update_bonds()
-	show_message("%s移至營地待命。" % heroes[hid]["name"], 2.2)
-	play_sfx("ui_confirm")
-	if hero_config_origin == "intermission":
-		save_run_checkpoint()
+	if bool(result.get("changed", false)):
+		hero_cooldowns.erase(hid)
+		sync_roster_after_change()
+		show_message("%s移至營地，不再提供後備被動。" % heroes[hid]["name"], 2.4)
+		play_sfx("ui_confirm")
 
 
 func assign_hero_to_active(hid: String) -> void:
 	if active_heroes.has(hid):
-		show_message("%s已在主戰欄。" % heroes[hid]["name"], 1.8)
+		show_message("%s目前已在主戰陣容。" % heroes[hid]["name"], 1.8)
 		return
 	if active_heroes.size() >= active_limit():
 		config_candidate = hid
@@ -1754,16 +1741,32 @@ func assign_hero_to_active(hid: String) -> void:
 		screen = "config_replace"
 		play_sfx("ui_confirm")
 		return
-	reserve_heroes.erase(hid)
-	camp_heroes.erase(hid)
-	active_heroes.append(hid)
-	hero_cooldowns[hid] = hero_cooldown_value(hid)
-	update_bonds()
-	show_message("%s調至主戰欄，技能由完整冷卻開始。" % heroes[hid]["name"], 2.4)
-	play_sfx("ui_confirm")
-	if hero_config_origin == "intermission":
-		save_run_checkpoint()
+	var result: Dictionary = HeroRosterManagerScript.move_to_active(
+		hid, active_heroes, reserve_heroes, camp_heroes, active_limit()
+	)
+	if bool(result.get("changed", false)):
+		hero_cooldowns[hid] = hero_cooldown_value(hid)
+		sync_roster_after_change()
+		show_message("%s調至主戰欄，技能由完整冷卻開始。" % heroes[hid]["name"], 2.5)
+		play_sfx("ui_confirm")
 
+
+func cycle_support_assignment(hid: String) -> void:
+	match hero_roster_state(hid):
+		"active":
+			assign_hero_to_reserve(hid)
+		"reserve":
+			assign_hero_to_camp(hid)
+		_:
+			assign_hero_to_reserve(hid)
+
+
+func place_hero_in_support(hid: String) -> String:
+	var destination: String = HeroRosterManagerScript.place_in_support(
+		hid, active_heroes, reserve_heroes, camp_heroes, reserve_limit()
+	)
+	hero_cooldowns.erase(hid)
+	return destination
 
 func handle_hero_config_key(key: int) -> void:
 	var order: Array[String] = known_hero_order()
@@ -2400,27 +2403,6 @@ func reserve_limit() -> int:
 	if chapter_number >= 5:
 		return 4
 	return 3
-
-
-func place_hero_in_support(hid: String) -> String:
-	active_heroes.erase(hid)
-	reserve_heroes.erase(hid)
-	camp_heroes.erase(hid)
-	if reserve_heroes.size() < reserve_limit():
-		reserve_heroes.append(hid)
-		return "reserve"
-	camp_heroes.append(hid)
-	return "camp"
-
-
-func hero_roster_state(hid: String) -> String:
-	if active_heroes.has(hid):
-		return "active"
-	if reserve_heroes.has(hid):
-		return "reserve"
-	if camp_heroes.has(hid):
-		return "camp"
-	return "unknown"
 
 
 func active_limit() -> int:
