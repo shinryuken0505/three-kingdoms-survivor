@@ -8954,33 +8954,17 @@ func draw_hero_encounter_screen() -> void:
 
 func draw_replace_screen() -> void:
 	draw_overlay_backdrop()
-	draw_panel(
-		Rect2(260, 100, 760, 520), Color(0.035, 0.04, 0.041, 0.98), Color8(220, 188, 112), 2.0
-	)
-	draw_text(
-		"主動欄已滿：請選擇替換名將",
-		Vector2(640, 150),
-		28,
-		Color8(239, 215, 159),
-		true,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		690
-	)
+	var panel := Rect2(260, 100, 760, 520)
+	draw_panel(panel, Color(0.035, 0.04, 0.041, 0.98), Color8(220, 188, 112), 2.0)
+	draw_centered_text("主動欄已滿：請選擇替換名將", panel, 58.0, 28, Color8(239, 215, 159), true)
 	for i in range(active_heroes.size() + 1):
 		var label: String = "取消，改列後備"
 		if i < active_heroes.size():
 			var hid: String = str(active_heroes[i])
 			label = "替換 %s Lv.%d" % [heroes[hid]["name"], hero_levels.get(hid, 1)]
-		var r: Rect2 = Rect2(340, 205 + i * 68, 600, 52)
-		if i == option_index:
-			draw_rect(r, Color(0.53, 0.36, 0.14, 0.82), true)
-		draw_text(
-			("▶ " if i == option_index else "　") + label,
-			r.position + Vector2(18, 35),
-			22,
-			Color8(238, 226, 198),
-			i == option_index
-		)
+		var r: Rect2 = Rect2(panel.position.x + 80, panel.position.y + 105 + i * 68, 600, 52)
+		draw_panel(r, Color(0.53, 0.36, 0.14, 0.82) if i == option_index else Color(0.045, 0.05, 0.05, 0.85), Color8(220, 188, 112) if i == option_index else Color8(90, 88, 76), 1.5 if i == option_index else 1.0)
+		draw_centered_text(("▶ " if i == option_index else "") + label, r, 34.0, 21, Color8(238, 226, 198), i == option_index)
 
 
 func draw_shop_screen() -> void:
@@ -9093,43 +9077,20 @@ func draw_hero_config_screen() -> void:
 
 func draw_config_replace_screen() -> void:
 	draw_overlay_backdrop()
-	draw_panel(
-		Rect2(250, 95, 780, 530), Color(0.035, 0.04, 0.041, 0.985), Color8(220, 188, 112), 2.0
-	)
-	draw_text(
-		"主戰欄已滿：選擇替換名將",
-		Vector2(640, 145),
-		29,
-		Color8(239, 215, 159),
-		true,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		700
-	)
+	var panel := Rect2(250, 95, 780, 530)
+	draw_panel(panel, Color(0.035, 0.04, 0.041, 0.985), Color8(220, 188, 112), 2.0)
+	draw_centered_text("主戰欄已滿：選擇替換名將", panel, 58.0, 29, Color8(239, 215, 159), true)
 	if config_candidate != "" and heroes.has(config_candidate):
-		draw_text(
-			"準備上場：%s" % heroes[config_candidate]["name"],
-			Vector2(640, 180),
-			20,
-			heroes[config_candidate]["color"],
-			true,
-			HORIZONTAL_ALIGNMENT_CENTER,
-			600
-		)
+		draw_centered_text("準備上場：%s" % heroes[config_candidate]["name"], panel, 94.0, 19, heroes[config_candidate]["color"], true)
 	for i in range(active_heroes.size() + 1):
 		var label: String = "取消替換"
 		if i < active_heroes.size():
 			var hid: String = str(active_heroes[i])
 			label = "替換 %s Lv.%d" % [heroes[hid]["name"], hero_bond_level(hid)]
-		var rect: Rect2 = Rect2(335, 220 + i * 66, 610, 50)
-		if i == config_replace_index:
-			draw_rect(rect, Color(0.53, 0.36, 0.14, 0.86), true)
-		draw_text(
-			("▶ " if i == config_replace_index else "　") + label,
-			rect.position + Vector2(18, 33),
-			21,
-			Color8(238, 226, 198),
-			i == config_replace_index
-		)
+		var rect: Rect2 = Rect2(panel.position.x + 85, panel.position.y + 125 + i * 66, 610, 50)
+		var selected := i == config_replace_index
+		draw_panel(rect, Color(0.53, 0.36, 0.14, 0.86) if selected else Color(0.045, 0.05, 0.05, 0.86), Color8(220, 188, 112) if selected else Color8(90, 88, 76), 1.5 if selected else 1.0)
+		draw_centered_text(("▶ " if selected else "") + label, rect, 33.0, 21, Color8(238, 226, 198), selected)
 
 
 func camp_menu_options() -> Array[String]:
