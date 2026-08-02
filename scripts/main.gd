@@ -224,6 +224,10 @@ var hero_config_index: int = 0
 var hero_config_origin: String = "game"
 var config_candidate: String = ""
 var config_replace_index: int = 0
+var hero_position_picker_open: bool = false
+var hero_position_index: int = 0
+var hero_position_candidate: String = ""
+var config_replace_mode: String = "active" # active／reserve
 var camp_menu_index: int = 0
 
 var bgm_player: AudioStreamPlayer
@@ -1774,6 +1778,9 @@ func handle_hero_config_key(key: int) -> void:
 		close_hero_config()
 		return
 	hero_config_index = clampi(hero_config_index, 0, order.size() - 1)
+	if hero_position_picker_open:
+		handle_hero_position_picker_key(key)
+		return
 	if is_up_key(key) or is_left_key(key):
 		hero_config_index = wrapi(hero_config_index - 1, 0, order.size())
 		play_sfx("ui_move")
@@ -1782,53 +1789,112 @@ func handle_hero_config_key(key: int) -> void:
 		play_sfx("ui_move")
 	elif key == KEY_ESCAPE or key == KEY_TAB:
 		close_hero_config()
-	else:
-		var hid: String = order[hero_config_index]
-		if key in [KEY_1, KEY_KP_1]:
-			assign_hero_to_active(hid)
-		elif key in [KEY_2, KEY_KP_2]:
-			assign_hero_to_reserve(hid)
-		elif key in [KEY_3, KEY_KP_3]:
-			assign_hero_to_camp(hid)
-		elif is_confirm_key(key):
-			# Enter／Space不再優先把營地武將塞進主戰；依目前位置切換後備狀態。
-			if camp_heroes.has(hid):
-				assign_hero_to_reserve(hid)
-			elif reserve_heroes.has(hid):
-				assign_hero_to_camp(hid)
-			elif active_heroes.has(hid):
-				assign_hero_to_reserve(hid)
-
-
-func handle_config_replace_key(key: int) -> void:
-	var count: int = active_heroes.size() + 1
-	if is_up_key(key) or is_left_key(key):
-		config_replace_index = wrapi(config_replace_index - 1, 0, count)
-		play_sfx("ui_move")
-	elif is_down_key(key) or is_right_key(key):
-		config_replace_index = wrapi(config_replace_index + 1, 0, count)
-		play_sfx("ui_move")
-	elif key == KEY_ESCAPE:
-		screen = "hero_config"
-		play_sfx("ui_move")
 	elif is_confirm_key(key):
-		if config_replace_index >= active_heroes.size():
-			screen = "hero_config"
-			return
-		var old_id: String = str(active_heroes[config_replace_index])
-		active_heroes[config_replace_index] = config_candidate
-		reserve_heroes.erase(config_candidate)
-		camp_heroes.erase(config_candidate)
-		place_hero_in_support(old_id)
-		hero_cooldowns.erase(old_id)
-		hero_cooldowns[config_candidate] = hero_cooldown_value(config_candidate)
-		show_message(
-			"%s上場，%s轉入後援編成。" % [heroes[config_candidate]["name"], heroes[old_id]["name"]], 2.8
-		)
-		update_bonds()
-		screen = "hero_config"
+		hero_position_candidate = order[hero_config_index]
+		var current_state: String = hero_roster_state(hero_position_candidate)
+		hero_position_index = 0 if current_state == "active" else (1 if current_state == "reserve" else 2)
+		hero_position_picker_open = true
 		play_sfx("ui_confirm")
 
+
+func handle_hero_position_picker_key(key: int) -> void:
+	if key == KEY_ESCAPE or key == KEY_TAB:
+		hero_position_picker_open = false
+		play_sfx("ui_cancel")
+		return
+	if is_up_key(key) or is_left_key(key):
+		hero_position_index = wrapi(hero_position_index - 1, 0, 4)
+		play_sfx("ui_move")
+		return
+	if is_down_key(key) or is_right_key(key):
+		hero_position_index = wrapi(hero_position_index + 1, 0, 4)
+		play_sfx("ui_move")
+		return
+	if not is_confirm_key(key):
+		return
+	if hero_position_index == 3:
+		hero_position_picker_open = false
+		play_sfx("ui_cancel")
+		return
+	var hid: String = hero_position_candidate
+	if hid == "" or not heroes.has(hid):
+		hero_position_picker_open = false
+		return
+	var current_state: String = hero_roster_state(hid)
+	var target_state: String = ["active", "reserve", "camp"][hero_position_index]
+	if current_state == target_state:
+		show_message("%s目前已在%s。" % [heroes[hid]["name"], "主戰" if target_state == "active" else ("後備" if target_state == "reserve" else "營地")], 2.0)
+		hero_position_picker_open = false
+		play_sfx("ui_error")
+		return
+	if target_state == "active" and active_heroes.size() >= active_limit():
+		config_candidate = hid
+		config_replace_mode = "active"
+		config_replace_index = 0
+		hero_position_picker_open = false
+		screen = "config_replace"
+		play_sfx("ui_confirm")
+		return
+	if target_state == "reserve" and reserve_heroes.size() >= reserve_limit():
+		config_candidate = hid
+		config_replace_mode = "reserve"
+		config_replace_index = 0
+		hero_position_picker_open = false
+		screen = "config_replace"
+		play_sfx("ui_confirm")
+		return
+	match target_state:
+		"active":
+			assign_hero_to_active(hid)
+		"reserve":
+			assign_hero_to_reserve(hid)
+		"camp":
+			assign_hero_to_camp(hid)
+	hero_position_picker_open = false
+
+func handle_config_replace_key(key: int) -> void:
+	var pool: Array = active_heroes if config_replace_mode == "active" else reserve_heroes
+	config_replace_index = clampi(config_replace_index, 0, pool.size())
+	if is_up_key(key) or is_left_key(key):
+		config_replace_index = wrapi(config_replace_index - 1, 0, pool.size() + 1)
+		play_sfx("ui_move")
+	elif is_down_key(key) or is_right_key(key):
+		config_replace_index = wrapi(config_replace_index + 1, 0, pool.size() + 1)
+		play_sfx("ui_move")
+	elif key == KEY_ESCAPE or key == KEY_TAB:
+		config_candidate = ""
+		screen = "hero_config"
+		play_sfx("ui_cancel")
+	elif is_confirm_key(key):
+		if config_replace_index >= pool.size():
+			config_candidate = ""
+			screen = "hero_config"
+			play_sfx("ui_cancel")
+			return
+		var old_id: String = str(pool[config_replace_index])
+		var new_id: String = config_candidate
+		if config_replace_mode == "active":
+			active_heroes[config_replace_index] = new_id
+			reserve_heroes.erase(new_id)
+			camp_heroes.erase(new_id)
+			place_hero_in_support(old_id)
+			hero_cooldowns.erase(old_id)
+			hero_cooldowns[new_id] = hero_cooldown_value(new_id)
+			show_message("%s編入主戰，%s轉入後援。" % [heroes[new_id]["name"], heroes[old_id]["name"]], 2.6)
+		else:
+			reserve_heroes[config_replace_index] = new_id
+			active_heroes.erase(new_id)
+			hero_cooldowns.erase(new_id)
+			camp_heroes.erase(new_id)
+			if not camp_heroes.has(old_id):
+				camp_heroes.append(old_id)
+			show_message("%s編入後備，%s返回營地。" % [heroes[new_id]["name"], heroes[old_id]["name"]], 2.6)
+		update_bonds()
+		play_sfx("ui_confirm")
+		config_candidate = ""
+		screen = "hero_config"
+		if hero_config_origin == "intermission":
+			save_run_checkpoint()
 
 func handle_tab_key(key: int) -> void:
 	if key in [KEY_TAB, KEY_I, KEY_ESCAPE]:
@@ -9052,7 +9118,8 @@ func draw_hero_config_screen() -> void:
 		draw_texture_contain(portrait_tex[hid], Rect2(rect.position + Vector2(4, 3), Vector2(40, 38)))
 		var state: String = "主戰" if active_heroes.has(hid) else ("後備" if reserve_heroes.has(hid) else "營地")
 		draw_text("%s　Lv.%d" % [heroes[hid]["name"], hero_bond_level(hid)], rect.position + Vector2(52, 27), 17, heroes[hid]["color"], true, HORIZONTAL_ALIGNMENT_LEFT, 280)
-		draw_text(state, rect.position + Vector2(445, 27), 15, Color8(133, 221, 155) if state == "主戰" else Color8(180, 191, 183), true, HORIZONTAL_ALIGNMENT_RIGHT, 90)
+		var state_color: Color = Color8(238, 201, 110) if state == "主戰" else (Color8(116, 184, 226) if state == "後備" else Color8(154, 160, 154))
+		draw_text("【%s】" % state, rect.position + Vector2(445, 27), 15, state_color, true, HORIZONTAL_ALIGNMENT_RIGHT, 90)
 	var selected_id: String = order[hero_config_index]
 	var detail_panel: Rect2 = Rect2(630, 220, 530, 370)
 	draw_panel(detail_panel, Color(0.045, 0.05, 0.05, 0.94), heroes[selected_id]["color"], 1.5)
@@ -9063,35 +9130,58 @@ func draw_hero_config_screen() -> void:
 	draw_wrapped(str(heroes[selected_id]["active"]), Rect2(detail_panel.position + Vector2(215, 136), Vector2(285, 70)), 14, Color8(207, 214, 205), 20.0)
 	draw_text("後備能力", detail_panel.position + Vector2(215, 220), 16, Color8(228, 204, 150), true)
 	draw_wrapped(str(heroes[selected_id]["passive"]), Rect2(detail_panel.position + Vector2(215, 230), Vector2(285, 70)), 14, Color8(207, 214, 205), 20.0)
-	var state_label: String = "主戰" if active_heroes.has(selected_id) else ("後備被動" if reserve_heroes.has(selected_id) else "營地待命")
-	draw_text("目前位置：%s" % state_label, Vector2(108, 616), 16, Color8(230, 211, 168), true)
-	var action_y: float = 640.0
-	var action_labels: Array[String] = ["1 主戰", "2 後備被動", "3 營地"]
-	for action_i in range(action_labels.size()):
-		var action_rect: Rect2 = Rect2(300 + action_i * 220, action_y - 25, 200, 36)
-		var selected_state: bool = (action_i == 0 and active_heroes.has(selected_id)) or (action_i == 1 and reserve_heroes.has(selected_id)) or (action_i == 2 and camp_heroes.has(selected_id))
-		draw_panel(action_rect, Color(0.43, 0.30, 0.12, 0.90) if selected_state else Color(0.045, 0.052, 0.052, 0.94), Color8(232, 196, 112) if selected_state else Color8(101, 101, 86), 1.4 if selected_state else 1.0)
-		draw_centered_text(action_labels[action_i], action_rect, 24.0, 14, Color8(239, 224, 187), selected_state)
-	draw_text("↑↓選擇名將　Enter快速切換　Esc／Tab返回", Vector2(1160, 659), 13, Color8(181, 189, 181), false, HORIZONTAL_ALIGNMENT_RIGHT, 620)
+	var state_label: String = "主戰" if active_heroes.has(selected_id) else ("後備" if reserve_heroes.has(selected_id) else "營地")
+	var state_color: Color = Color8(238, 201, 110) if state_label == "主戰" else (Color8(116, 184, 226) if state_label == "後備" else Color8(154, 160, 154))
+	draw_text("目前編成：【%s】" % state_label, Vector2(108, 620), 16, state_color, true)
+	draw_text("↑↓選擇名將　Enter／Space調整位置　Esc／Tab返回", Vector2(1160, 650), 14, Color8(181, 189, 181), false, HORIZONTAL_ALIGNMENT_RIGHT, 720)
+	if hero_position_picker_open:
+		draw_hero_position_picker()
+
+
+func draw_hero_position_picker() -> void:
+	draw_rect(Rect2(Vector2.ZERO, VIEW), Color(0.0, 0.0, 0.0, 0.62), true)
+	var panel: Rect2 = Rect2(335, 135, 610, 450)
+	draw_panel(panel, Color(0.028, 0.034, 0.035, 0.99), Color8(215, 181, 105), 2.2)
+	var hid: String = hero_position_candidate
+	var hero_name: String = str(heroes.get(hid, {}).get("name", hid))
+	draw_centered_text("調整%s的編成位置" % hero_name, panel, 54.0, 28, Color8(239, 215, 159), true)
+	draw_centered_text("選擇新位置；欄位已滿時才會進入替換名單。", panel, 88.0, 14, Color8(180, 190, 181))
+	var labels: Array[String] = ["主戰", "後備", "營地", "取消"]
+	var descriptions: Array[String] = [
+		"跟隨出戰，可施放主動技能。",
+		"提供後備能力與羈絆效果。",
+		"暫不參戰，也不提供後備能力。",
+		"保持目前編成位置。"
+	]
+	for i in range(labels.size()):
+		var r: Rect2 = Rect2(panel.position.x + 55, panel.position.y + 125 + i * 72, panel.size.x - 110, 58)
+		var selected: bool = i == hero_position_index
+		draw_panel(r, Color(0.42, 0.30, 0.13, 0.92) if selected else Color(0.045, 0.051, 0.051, 0.96), Color8(230, 194, 112) if selected else Color8(96, 99, 91), 1.8 if selected else 1.0)
+		draw_text(("▶ " if selected else "　") + labels[i], r.position + Vector2(18, 25), 19, Color8(241, 224, 185), selected)
+		draw_text(descriptions[i], r.position + Vector2(145, 24), 14, Color8(191, 201, 191), false, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 160)
+	draw_centered_text("↑↓選擇　Enter／Space確認　Esc取消", panel, 420.0, 13, Color8(169, 178, 169))
 
 
 func draw_config_replace_screen() -> void:
 	draw_overlay_backdrop()
-	var panel := Rect2(250, 95, 780, 530)
+	var panel: Rect2 = Rect2(250, 95, 780, 530)
 	draw_panel(panel, Color(0.035, 0.04, 0.041, 0.985), Color8(220, 188, 112), 2.0)
-	draw_centered_text("主戰欄已滿：選擇替換名將", panel, 58.0, 29, Color8(239, 215, 159), true)
+	var is_active: bool = config_replace_mode == "active"
+	var title: String = "主戰欄已滿：選擇替換名將" if is_active else "後備欄已滿：選擇返回營地的名將"
+	draw_centered_text(title, panel, 55.0, 28, Color8(239, 215, 159), true)
 	if config_candidate != "" and heroes.has(config_candidate):
-		draw_centered_text("準備上場：%s" % heroes[config_candidate]["name"], panel, 94.0, 19, heroes[config_candidate]["color"], true)
-	for i in range(active_heroes.size() + 1):
+		draw_centered_text("準備編入%s：%s" % ["主戰" if is_active else "後備", heroes[config_candidate]["name"]], panel, 92.0, 18, heroes[config_candidate]["color"], true)
+	var pool: Array = active_heroes if is_active else reserve_heroes
+	for i in range(pool.size() + 1):
 		var label: String = "取消替換"
-		if i < active_heroes.size():
-			var hid: String = str(active_heroes[i])
-			label = "替換 %s Lv.%d" % [heroes[hid]["name"], hero_bond_level(hid)]
-		var rect: Rect2 = Rect2(panel.position.x + 85, panel.position.y + 125 + i * 66, 610, 50)
-		var selected := i == config_replace_index
-		draw_panel(rect, Color(0.53, 0.36, 0.14, 0.86) if selected else Color(0.045, 0.05, 0.05, 0.86), Color8(220, 188, 112) if selected else Color8(90, 88, 76), 1.5 if selected else 1.0)
-		draw_centered_text(("▶ " if selected else "") + label, rect, 33.0, 21, Color8(238, 226, 198), selected)
-
+		if i < pool.size():
+			var hid: String = str(pool[i])
+			label = ("替換 %s" if is_active else "%s返回營地") % heroes[hid]["name"]
+		var rect: Rect2 = Rect2(panel.position.x + 85, panel.position.y + 130 + i * 66, panel.size.x - 170, 50)
+		var selected: bool = i == config_replace_index
+		draw_panel(rect, Color(0.53, 0.36, 0.14, 0.86) if selected else Color(0.045, 0.05, 0.05, 0.94), Color8(226, 190, 108) if selected else Color8(93, 96, 89), 1.6 if selected else 1.0)
+		draw_centered_text(("▶ " if selected else "") + label, rect, 32.0, 20, Color8(238, 226, 198), selected)
+	draw_centered_text("↑↓選擇　Enter／Space確認　Esc取消", panel, panel.size.y - 24.0, 13, Color8(170, 179, 170))
 
 func camp_menu_options() -> Array[String]:
 	return ["名將編成", "裝備管理", "遺物確認", "返回戰場"]
