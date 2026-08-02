@@ -1710,60 +1710,6 @@ func assign_hero_roster(hid: String, target: String) -> void:
 
 
 func assign_hero_to_reserve(hid: String) -> void:
-	if active_heroes.has(hid):
-		active_heroes.erase(hid)
-		hero_cooldowns.erase(hid)
-	camp_heroes.erase(hid)
-	if not reserve_heroes.has(hid):
-		if reserve_heroes.size() >= reserve_limit():
-			if not camp_heroes.has(hid):
-				camp_heroes.append(hid)
-			show_message("後備欄已滿（%d／%d），請先將一名後備武將移回營地。" % [reserve_heroes.size(), reserve_limit()], 2.8)
-			play_sfx("ui_error")
-			return
-		reserve_heroes.append(hid)
-	update_bonds()
-	show_message("%s已編入後備，開始提供被動能力與羈絆。" % heroes[hid]["name"], 2.5)
-	play_sfx("ui_confirm")
-	if hero_config_origin == "intermission":
-		save_run_checkpoint()
-
-
-func assign_hero_to_camp(hid: String) -> void:
-	active_heroes.erase(hid)
-	reserve_heroes.erase(hid)
-	hero_cooldowns.erase(hid)
-	if not camp_heroes.has(hid):
-		camp_heroes.append(hid)
-	update_bonds()
-	show_message("%s已移至營地待命。" % heroes[hid]["name"], 2.3)
-	play_sfx("ui_confirm")
-	if hero_config_origin == "intermission":
-		save_run_checkpoint()
-
-
-func assign_hero_to_active(hid: String) -> void:
-	if active_heroes.has(hid):
-		show_message("%s目前已在主戰陣容。" % heroes[hid]["name"], 1.8)
-		return
-	if active_heroes.size() >= active_limit():
-		config_candidate = hid
-		config_replace_index = 0
-		screen = "config_replace"
-		play_sfx("ui_confirm")
-		return
-	reserve_heroes.erase(hid)
-	camp_heroes.erase(hid)
-	active_heroes.append(hid)
-	hero_cooldowns[hid] = hero_cooldown_value(hid)
-	update_bonds()
-	show_message("%s已調至主戰，技能由完整冷卻開始。" % heroes[hid]["name"], 2.5)
-	play_sfx("ui_confirm")
-	if hero_config_origin == "intermission":
-		save_run_checkpoint()
-
-
-func assign_hero_to_reserve(hid: String) -> void:
 	if reserve_heroes.has(hid):
 		show_message("%s已在後備被動欄。" % heroes[hid]["name"], 1.8)
 		return
