@@ -164,6 +164,14 @@ func has_next_chapter() -> bool:
 	return mode == "story" and current_index + 1 < story_chapters.size()
 
 
+func is_final_chapter() -> bool:
+	return mode == "story" and not story_chapters.is_empty() and current_index == story_chapters.size() - 1
+
+
+func campaign_is_completed() -> bool:
+	return is_final_chapter() and boss_state == BossState.RESOLVED
+
+
 func next_chapter() -> Dictionary:
 	if not has_next_chapter():
 		return {}
@@ -206,5 +214,7 @@ func debug_snapshot() -> Dictionary:
 		"current_id": current_id(),
 		"boss_state": boss_state,
 		"boss_state_label": boss_state_label(),
+		"is_final_chapter": is_final_chapter(),
+		"campaign_completed": campaign_is_completed(),
 		"completed": completed_chapters.duplicate()
 	}
