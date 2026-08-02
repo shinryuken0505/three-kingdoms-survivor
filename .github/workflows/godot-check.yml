@@ -1,0 +1,59 @@
+name: Godot Check
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+      - feature/**
+      - fix/**
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Parse and self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4.7.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Show Godot version
+        run: godot --version
+
+      - name: Import project and parse scripts
+        run: |
+          set -o pipefail
+          godot --headless --path . --editor --quit 2>&1 | tee godot-import.log
+
+      - name: Run project self-test
+        run: |
+          set -o pipefail
+          timeout 180s godot --headless --path . -- --self-test 2>&1 | tee godot-self-test.log
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-check-logs
+          path: |
+            godot-import.log
+            godot-self-test.log
+          if-no-files-found: ignore
+          retention-days: 7
