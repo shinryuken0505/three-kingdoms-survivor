@@ -1,6 +1,6 @@
 # V2.0.0-alpha.17 待改清單
 
-本文件集中記錄目前測試中確認的問題與功能需求，供後續 AI／工程師依序處理。
+本文件集中記錄目前測試中確認的問題、功能需求與架構整理工作，供後續 AI／工程師依序處理。
 
 ## 使用方式
 
@@ -9,6 +9,7 @@
 - 玩家可見文字需預留繁中、簡中、英文、日文翻譯 key。
 - 所有畫面需以 1280×720 為基準，並確認 16:9 等比縮放。
 - 未經本機 Godot 4.7.x F5 實測，不可標記為完成。
+- 架構整理項目不得在同一輪同時改玩法規則與存檔格式。
 
 ---
 
@@ -98,8 +99,6 @@
 
 ### 顯示位置建議
 
-優先順序：
-
 1. 主角頭上方小型圖示列。
 2. 若同時狀態過多，右上角 HUD 顯示完整狀態列。
 3. 主角頭上保留最多 3 個最重要狀態，其餘顯示於 HUD。
@@ -108,55 +107,24 @@
 
 - 與範圍技／戰場提示 icon 使用一致的像素風與描邊規格。
 - icon 必須清晰、易懂，避免只靠顏色區分。
-- 建議圖示：
-  - 中毒：毒滴／骷髏
-  - 燃燒：火焰
-  - 緩速：冰晶／鎖鏈
-  - 暈眩：星星
-  - 沉默：封口／斷裂符文
-  - 流血：血滴
-  - 易傷：破裂盾牌
+- 建議圖示：中毒、燃燒、緩速、暈眩、沉默、流血、易傷。
 - 圖示下方或外圈顯示剩餘時間。
 - 可堆疊狀態顯示層數。
 - 狀態即將結束時可閃爍或降低透明度。
 
 ### 架構要求
 
-建議建立統一的狀態資料結構：
-
-```gdscript
-{
-  "id": "poison",
-  "duration": 4.5,
-  "stacks": 2,
-  "source_id": "enemy_tactician"
-}
-```
-
-並逐步拆為：
+建議拆為：
 
 ```text
 scripts/systems/combat/status_effect_manager.gd
-scripts/ui/components/status_effect_icon.gd
-scripts/ui/components/status_effect_bar.gd
+scripts/data/status_effect_defs.gd
+scripts/ui/components/status_effect_renderer.gd
 ```
 
 - 戰鬥規則不直接繪製 icon。
 - UI 不以中文狀態名稱判斷效果。
-- 狀態 ID、icon path、翻譯 key 與優先級應集中定義。
-
-### 多國語言 key 建議
-
-```text
-status.poison.name
-status.poison.desc
-status.burn.name
-status.slow.name
-status.stun.name
-status.silence.name
-status.bleed.name
-status.vulnerable.name
-```
+- 狀態 ID、icon path、翻譯 key 與優先級集中定義。
 
 ### 驗收條件
 
@@ -165,15 +133,229 @@ status.vulnerable.name
 3. 同時多種狀態時不互相重疊。
 4. 至少可辨識狀態種類與剩餘時間。
 5. 1280×720 下不遮住 Boss 血條、小地圖或技能欄。
-6. 繁中、簡中、英文、日文 tooltip 不破版。
+6. 四語 tooltip 不破版。
+
+---
+
+# 架構整理待辦
+
+## A17-ARCH-004　完成名將整備模組拆分
+
+**優先度：最高**
+
+### 目標
+
+將名將整備的規則、互動決策、ViewModel 與繪製完全分離，逐步縮小 `main.gd`。
+
+### 目標檔案
+
+```text
+scripts/systems/hero/hero_roster_manager.gd
+scripts/systems/hero/hero_roster_controller.gd
+scripts/systems/hero/hero_roster_view_model.gd
+scripts/ui/screens/hero_config_screen.gd
+scripts/ui/screens/hero_position_picker_screen.gd
+scripts/ui/screens/hero_replace_screen.gd
+```
+
+### 驗收條件
+
+1. `main.gd` 不再包含完整名將整備畫面繪製。
+2. 主戰、後備、營地、滿額替換與 Esc 取消維持現有行為。
+3. UI 不直接修改編成陣列。
+4. 不改存檔格式。
+
+---
+
+## A17-ARCH-005　建立共用 UI 元件
+
+**優先度：高**
+
+### 目標檔案
+
+```text
+scripts/ui/components/panel_renderer.gd
+scripts/ui/components/menu_option_renderer.gd
+scripts/ui/components/modal_renderer.gd
+scripts/ui/components/status_badge_renderer.gd
+scripts/ui/components/text_layout.gd
+```
+
+### 目的
+
+統一 Panel、標題、選項、高亮、底部操作提示與 Modal 背景，降低各畫面各自手算座標造成的跑版問題。
+
+### 驗收條件
+
+1. 章間、名將整備與替換視窗至少共用一項元件。
+2. 不改變既有視覺風格。
+3. 英文與日文長字串可安全換行或縮排。
+
+---
+
+## A17-ARCH-006　畫面路由與輸入路由
+
+**優先度：高**
+
+### 目標檔案
+
+```text
+scripts/core/screen_router.gd
+scripts/core/input_router.gd
+```
+
+### 目標
+
+- 使用 `ScreenIds` 作為唯一畫面 ID 來源。
+- 每個畫面具有固定的 enter／exit／handle_input／draw 契約。
+- 統一 Enter、Space、Esc 與 Modal 輸入鎖。
+
+### 驗收條件
+
+1. 不再新增裸 `screen = "..."` 字串。
+2. Modal 不會發生按鍵穿透。
+3. 輸入路由與繪製路由對同一畫面 ID 都有登記。
+
+---
+
+## A17-ARCH-007　多國語言全面落地與檢查工具
+
+**優先度：高**
+
+### 目標檔案
+
+```text
+localization/game.zh_TW.po
+localization/game.zh_CN.po
+localization/game.en.po
+localization/game.ja.po
+tools/check_localization_keys.py
+```
+
+### 目標
+
+- 玩家可見文字逐步改為翻譯 key。
+- 四語 key 必須一致。
+- 翻譯後文字不可作為流程判斷條件。
+
+### 驗收條件
+
+1. 工具可檢查缺少與多餘 key。
+2. 至少完成名將整備、章間畫面與負面狀態三個區域的四語 key。
+3. 繁中為 fallback，缺翻譯時不顯示空字串。
+
+---
+
+## A17-ARCH-008　存檔系統抽離
+
+**優先度：中高**
+
+### 目標檔案
+
+```text
+scripts/systems/save/save_manager.gd
+scripts/systems/save/save_migrator.gd
+scripts/systems/save/checkpoint_builder.gd
+scripts/systems/save/save_validator.gd
+```
+
+### 目標
+
+集中管理序列化、備份、版本遷移、章間檢查點與讀檔驗證。
+
+### 驗收條件
+
+1. 舊存檔可讀取。
+2. 主檔損壞時可使用備份。
+3. `SAVE_FORMAT_VERSION` 與 `CHECKPOINT_VERSION` 有明確遷移規則。
+4. 不在同一輪同時修改玩法與存檔格式。
+
+---
+
+## A17-ARCH-009　戰鬥狀態效果系統
+
+**優先度：中高**
+
+### 目標檔案
+
+```text
+scripts/systems/combat/status_effect_manager.gd
+scripts/data/status_effect_defs.gd
+scripts/ui/components/status_effect_renderer.gd
+```
+
+### 目標
+
+統一處理中毒、燃燒、緩速、暈眩、沉默、流血與易傷等狀態，並提供 HUD 使用的 ViewModel。
+
+### 驗收條件
+
+1. 狀態規則與 HUD 繪製分離。
+2. 狀態使用穩定英文 ID。
+3. 支援 duration、stacks、source_id、priority。
+4. 可直接支援 `A17-HUD-003`。
+
+---
+
+## A17-ARCH-010　靜態資料拆分與資料驗證
+
+**優先度：中**
+
+### 目標檔案
+
+```text
+scripts/data/hero_defs.gd
+scripts/data/skill_defs.gd
+scripts/data/equipment_defs.gd
+scripts/data/relic_defs.gd
+scripts/data/bond_defs.gd
+scripts/data/chapter_defs.gd
+scripts/data/enemy_defs.gd
+scripts/data/data_validator.gd
+```
+
+### 驗收條件
+
+1. ID 不重複。
+2. 引用的角色、技能、羈絆與 Boss 都存在。
+3. icon／portrait／sprite 路徑有效。
+4. 所有玩家文字都有翻譯 key。
+5. 新資料缺欄位時能在 CI 中明確報錯。
+
+---
+
+## A17-ARCH-011　清理暫時性工具與 Actions
+
+**優先度：中**
+
+### 目標
+
+分類現有 `tools/fix_*.py` 與 `.github/workflows/fix-*.yml`：
+
+- 保留：Godot Check、靜態檢查、資料驗證、翻譯驗證。
+- 移除：只執行一次的 patch workflow。
+- 封存：仍有追溯價值的歷史修復工具。
+
+### 驗收條件
+
+1. 新 AI 能清楚辨識哪些 workflow 是正式流程。
+2. 不再使用一次性 patch workflow 作為一般開發方式。
+3. 所有自動生成 commit 都必須被後續驗證。
 
 ---
 
 ## 建議處理順序
 
-1. `A17-UI-001`：先修章間畫面排版。
-2. `A17-HERO-002`：統一招賢館與名將整備流程。
-3. `A17-HUD-003`：建立負面狀態資料與 HUD。
+1. `A17-ARCH-004`：完成名將整備模組拆分。
+2. `A17-ARCH-005`：建立共用 UI 元件。
+3. `A17-UI-001`：使用共用版面工具修章間排版。
+4. `A17-HERO-002`：統一招賢館與名將整備流程。
+5. `A17-ARCH-006`：畫面與輸入路由。
+6. `A17-ARCH-007`：多國語言落地。
+7. `A17-ARCH-009`＋`A17-HUD-003`：狀態效果與 HUD。
+8. `A17-ARCH-008`：存檔抽離。
+9. `A17-ARCH-010`：靜態資料拆分。
+10. `A17-ARCH-011`：清理暫時性工具與 Actions。
 
 ## 測試紀錄
 
@@ -182,3 +364,11 @@ status.vulnerable.name
 | A17-UI-001 | 待處理 |  |  |  |  |
 | A17-HERO-002 | 待處理 |  |  |  |  |
 | A17-HUD-003 | 待處理 |  |  |  |  |
+| A17-ARCH-004 | 進行中 |  |  |  | 名將規則與 Controller 已建立 |
+| A17-ARCH-005 | 待處理 |  |  |  |  |
+| A17-ARCH-006 | 待處理 |  |  |  |  |
+| A17-ARCH-007 | 待處理 |  |  |  |  |
+| A17-ARCH-008 | 待處理 |  |  |  |  |
+| A17-ARCH-009 | 待處理 |  |  |  |  |
+| A17-ARCH-010 | 待處理 |  |  |  |  |
+| A17-ARCH-011 | 待處理 |  |  |  |  |
