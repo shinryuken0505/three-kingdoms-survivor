@@ -7,7 +7,8 @@ const ChapterManagerScript = preload("res://scripts/chapter_manager.gd")
 const HistoryEventData = preload("res://scripts/history_event_data.gd")
 const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rules.gd")
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.16"
+const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
+const GAME_VERSION: String = "V2.0.0-alpha.17"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -50,6 +51,7 @@ var bond_defs: Dictionary
 var skin_defs: Dictionary
 var history_event_defs: Dictionary
 var chapter_manager: Variant = null
+var ending_manager: Variant = null
 
 var font: SystemFont
 var font_bold: SystemFont
@@ -197,6 +199,8 @@ var game_over_reason: String = ""
 var auto_hero_cast_delay: float = 0.0
 var chapter_clear_snapshot: Dictionary = {}
 var pending_run_result: int = 0  # 1=勝利，-1=失敗；統一在更新階段安全結算
+var ending_snapshot: Dictionary = {}
+var ending_committed: bool = false
 
 # 章節安全點／寶箱／遺物循環
 var camp_active: bool = false
@@ -293,6 +297,7 @@ func _ready() -> void:
 	history_event_defs = HistoryEventData.events()
 	chapter_manager = ChapterManagerScript.new()
 	chapter_manager.configure(GameData.chapters(), GameData.trial_chapter())
+	ending_manager = EndingManagerScript.new()
 	setup_fonts()
 	load_assets()
 	load_save()
@@ -1017,7 +1022,7 @@ func _input(event: InputEvent) -> void:
 	# 其他 Modal 選單共用完整方向／確認流程；戰鬥畫面保留原始 Space／Shift 給閃避。
 	# 舊版只在 confirm 時呼叫 handle_option_screen_key()，造成雙名將候選等畫面
 	# 的左右／上下鍵完全沒有被處理。
-	if screen in ["hero_encounter_pick", "hero_encounter", "shop", "game_over", "victory", "boss_loot", "camp_menu"]:
+	if screen in ["hero_encounter_pick", "hero_encounter", "shop", "game_over", "victory", "ending", "boss_loot", "camp_menu"]:
 		var now_ms: int = Time.get_ticks_msec()
 		if confirm and now_ms < modal_input_lock_until_ms:
 			return
@@ -1287,6 +1292,8 @@ func show_boss_ability(text: String, duration: float = 1.8) -> void:
 
 
 func result_options() -> Array[String]:
+	if screen == "ending":
+		return ["返回主選單"]
 	if screen == "game_over":
 		return ["重新挑戰", "返回主選單"]
 	if screen == "victory" and chosen_mode == "story" and chapter_manager.has_next_chapter():
@@ -1354,7 +1361,7 @@ func handle_option_screen_key(key: int) -> void:
 			count = shop_choices.size() + 1
 		"replace_hero":
 			count = active_heroes.size() + 1
-		"game_over", "victory":
+		"game_over", "victory", "ending":
 			count = result_options().size()
 		"intermission":
 			count = intermission_options().size()
@@ -1407,7 +1414,7 @@ func handle_option_screen_key(key: int) -> void:
 					restart_current_chapter()
 				else:
 					return_to_menu()
-			"victory":
+			"victory", "ending":
 				handle_victory_option(option_index)
 			"intermission":
 				var options: Array[String] = intermission_options()
@@ -1920,6 +1927,8 @@ func reset_run_data() -> void:
 	equipment_inventory.clear()
 	equipped = {"weapon":"", "body":"", "treasure":"", "accessory":"", "jade":""}
 	pending_boss_loot.clear()
+	ending_snapshot.clear()
+	ending_committed = false
 	boss_ability_banner.clear()
 	skill_levels.clear()
 	encounter_cooldowns.clear()
@@ -6779,8 +6788,11 @@ func end_run(victory: bool) -> void:
 	chest_active = false
 	if victory:
 		boss_spawned = false
-		prepare_boss_loot()
-		screen = "boss_loot"
+		if chosen_mode == "story" and chapter_manager.is_final_chapter():
+			finalize_campaign_ending()
+		else:
+			prepare_boss_loot()
+			screen = "boss_loot"
 	else:
 		boss_spawned = false
 		screen = "game_over"
@@ -7495,6 +7507,8 @@ func _draw() -> void:
 			draw_save_confirmation_screen()
 		"boss_loot":
 			draw_boss_loot_screen()
+		"ending":
+			draw_ending_screen()
 		"game_over", "victory":
 			draw_result_screen()
 		"intermission":
@@ -9508,6 +9522,93 @@ func draw_settings_screen() -> void:
 ←→ 調整
 Enter／Space 切換", Rect2(detail.position + Vector2(22, 334), Vector2(270, 72)), 15, Color8(176, 187, 177), 23.0)
 	draw_text("Esc返回", Vector2(145, 641), 14, Color8(178, 188, 179))
+
+
+func finalize_campaign_ending() -> void:
+	if ending_committed:
+		return
+	ending_committed = true
+	if not chapter_manager.boss_is_defeated():
+		ending_committed = false
+		return
+	var definition: Dictionary = chapter_manager.boss_definition()
+	var context: Dictionary = {
+		"chapter_id": chapter_manager.current_id(),
+		"chapter_title": chapter_manager.current_title(),
+		"identity": chosen_identity,
+		"elapsed": elapsed,
+		"stats": run_stats.duplicate(true),
+		"active_heroes": active_heroes.duplicate(),
+		"reserve_heroes": reserve_heroes.duplicate(),
+		"active_bonds": active_bonds.duplicate(),
+		"relics": relics.duplicate(),
+		"equipment": equipped.duplicate(true),
+		"history_log": history_log.duplicate(),
+		"route_tags": history_route_tags.duplicate(true),
+		"faction_momentum": faction_momentum.duplicate(true),
+		"rewrite_rate": history_rewrite_rate
+	}
+	ending_snapshot = ending_manager.build_snapshot(context)
+	chapter_manager.resolve_chapter()
+	game_over_reason = "擊敗%s，亂世旅程寫下最終一頁。" % str(definition.get("name", "最終敵將"))
+	pending_boss_loot.clear()
+	chapter_reward_relic = ""
+	clear_run_checkpoint()
+	option_index = 0
+	screen = "ending"
+	play_bgm("victory", 1.2)
+	play_sfx("equipment_drop", 0.85)
+
+
+func ending_hero_names(ids: Variant) -> String:
+	var names: Array[String] = []
+	if ids is Array:
+		for value in ids:
+			var hid: String = str(value)
+			names.append(str(heroes.get(hid, {}).get("name", hid)))
+	return "、".join(names) if not names.is_empty() else "無"
+
+
+func ending_equipment_summary() -> String:
+	var parts: Array[String] = []
+	var equipment: Dictionary = ending_snapshot.get("equipment", {}) as Dictionary
+	for slot in ["weapon", "body", "treasure", "accessory", "jade"]:
+		var eid: String = str(equipment.get(slot, ""))
+		if eid != "" and equipment_defs.has(eid):
+			parts.append(str(equipment_defs[eid].get("name", eid)))
+	return "、".join(parts) if not parts.is_empty() else "未裝備"
+
+
+func draw_ending_screen() -> void:
+	draw_rect(Rect2(Vector2.ZERO, VIEW), Color8(17, 20, 20), true)
+	var root: Rect2 = Rect2(90, 42, 1100, 636)
+	draw_panel(root, Color(0.025, 0.03, 0.029, 0.99), Color8(206, 169, 91), 2.4)
+	draw_text("亂世終卷", Vector2(640, 92), 25, Color8(183, 170, 135), true, HORIZONTAL_ALIGNMENT_CENTER, 620)
+	draw_text(str(ending_snapshot.get("title", "亂世見證者")), Vector2(640, 142), 43, Color8(244, 215, 151), true, HORIZONTAL_ALIGNMENT_CENTER, 900)
+	draw_wrapped(str(ending_snapshot.get("narration", "")), Rect2(150, 166, 980, 82), 18, Color8(221, 221, 207), 27.0, true)
+	var left: Rect2 = Rect2(140, 270, 480, 260)
+	var right: Rect2 = Rect2(660, 270, 480, 260)
+	draw_panel(left, Color(0.04, 0.046, 0.044, 0.96), Color8(116, 103, 72), 1.3)
+	draw_panel(right, Color(0.04, 0.046, 0.044, 0.96), Color8(116, 103, 72), 1.3)
+	var stats: Dictionary = ending_snapshot.get("stats", {}) as Dictionary
+	var seconds: int = int(float(ending_snapshot.get("elapsed", 0.0)))
+	var left_lines: Array[String] = [
+		"最終章　%s" % str(ending_snapshot.get("chapter_title", "")),
+		"遊玩時間　%02d:%02d:%02d" % [seconds / 3600, (seconds / 60) % 60, seconds % 60],
+		"擊敗敵軍　%d" % int(stats.get("kills", 0)),
+		"造成傷害　%d" % int(stats.get("damage_dealt", 0.0)),
+		"承受傷害　%d" % int(stats.get("damage_taken", 0.0))
+	]
+	for i in range(left_lines.size()):
+		draw_text(left_lines[i], left.position + Vector2(24, 42 + i * 42), 17, Color8(223, 212, 184), i == 0)
+	draw_text("同行群英", right.position + Vector2(24, 40), 21, Color8(235, 211, 157), true)
+	draw_wrapped("主動：%s\n後備：%s" % [ending_hero_names(ending_snapshot.get("active_heroes", [])), ending_hero_names(ending_snapshot.get("reserve_heroes", []))], Rect2(right.position + Vector2(24, 58), Vector2(432, 78)), 16, Color8(207, 214, 204), 24.0)
+	draw_text("最終裝備", right.position + Vector2(24, 158), 19, Color8(235, 211, 157), true)
+	draw_wrapped(ending_equipment_summary(), Rect2(right.position + Vector2(24, 176), Vector2(432, 58)), 15, Color8(194, 204, 194), 22.0)
+	draw_wrapped("史官評曰：%s" % str(ending_snapshot.get("historian_comment", "")), Rect2(145, 548, 990, 54), 16, Color8(212, 194, 151), 23.0, true)
+	var button: Rect2 = Rect2(485, 612, 310, 50)
+	draw_panel(button, Color(0.48, 0.34, 0.13, 0.94), Color8(235, 204, 137), 1.8)
+	draw_centered_text("返回主選單", button, 33.0, 20, Color8(245, 231, 198), true)
 
 
 func draw_boss_loot_screen() -> void:

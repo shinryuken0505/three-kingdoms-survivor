@@ -43,8 +43,8 @@ replace_once(
     'func result_options() -> Array[String]:\n\tif screen == "ending":\n\t\treturn ["返回主選單"]\n\tif screen == "game_over":',
 )
 replace_once(
-    '\t\tpending_boss_loot.clear()\n\t\tboss_ability_banner.clear()',
-    '\t\tpending_boss_loot.clear()\n\t\tending_snapshot.clear()\n\t\tending_committed = false\n\t\tboss_ability_banner.clear()',
+    '\tpending_boss_loot.clear()\n\tboss_ability_banner.clear()',
+    '\tpending_boss_loot.clear()\n\tending_snapshot.clear()\n\tending_committed = false\n\tboss_ability_banner.clear()',
 )
 replace_once(
     '\tif victory:\n\t\tboss_spawned = false\n\t\tprepare_boss_loot()\n\t\tscreen = "boss_loot"',
