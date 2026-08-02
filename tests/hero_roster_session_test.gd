@@ -58,10 +58,11 @@ func test_replacement() -> void:
 func test_selected_hero() -> void:
 	var session := HeroRosterSession.new()
 	var order: Array[String] = ["liubei", "guanyu", "zhangfei"]
+	var empty_order: Array[String] = []
 	session.hero_index = 9
 	check(session.selected_hero_id(order) == "zhangfei", "selected hero should clamp to last entry")
 	check(session.hero_index == 2, "selected hero should normalize stored index")
-	check(session.selected_hero_id([]).is_empty(), "empty order should return empty id")
+	check(session.selected_hero_id(empty_order).is_empty(), "empty order should return empty id")
 
 
 func check(condition: bool, message: String) -> void:
