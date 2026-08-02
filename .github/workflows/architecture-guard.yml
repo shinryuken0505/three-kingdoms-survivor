@@ -6,12 +6,16 @@ on:
       - feature/alpha17-ending
     paths:
       - "scripts/**"
+      - "localization/**"
       - "tools/architecture_guard.py"
+      - "tools/check_localization_keys.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
       - "scripts/**"
+      - "localization/**"
       - "tools/architecture_guard.py"
+      - "tools/check_localization_keys.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -28,3 +32,5 @@ jobs:
           python-version: "3.12"
       - name: Check architecture invariants
         run: python tools/architecture_guard.py
+      - name: Check localization catalogs
+        run: python tools/check_localization_keys.py
