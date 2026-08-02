@@ -39,7 +39,7 @@ static func current_locale() -> String:
 
 
 static func text(key: StringName, fallback: String = "") -> String:
-	var translated: String = tr(key)
+	var translated: String = TranslationServer.translate(String(key))
 	if translated == String(key):
 		return fallback if fallback != "" else String(key)
 	return translated
