@@ -8,6 +8,7 @@ const HistoryEventData = preload("res://scripts/history_event_data.gd")
 const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rules.gd")
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
+const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
@@ -1782,76 +1783,91 @@ func handle_hero_config_key(key: int) -> void:
 		handle_hero_position_picker_key(key)
 		return
 	if is_up_key(key) or is_left_key(key):
-		hero_config_index = wrapi(hero_config_index - 1, 0, order.size())
+		hero_config_index = HeroRosterControllerScript.wrap_cursor(hero_config_index, -1, order.size())
 		play_sfx("ui_move")
 	elif is_down_key(key) or is_right_key(key):
-		hero_config_index = wrapi(hero_config_index + 1, 0, order.size())
+		hero_config_index = HeroRosterControllerScript.wrap_cursor(hero_config_index, 1, order.size())
 		play_sfx("ui_move")
 	elif key == KEY_ESCAPE or key == KEY_TAB:
 		close_hero_config()
 	elif is_confirm_key(key):
-		hero_position_candidate = order[hero_config_index]
-		var current_state: String = hero_roster_state(hero_position_candidate)
-		hero_position_index = 0 if current_state == "active" else (1 if current_state == "reserve" else 2)
+		var hid: String = order[hero_config_index]
+		var decision: Dictionary = HeroRosterControllerScript.open_picker_for(
+			hid,
+			hero_roster_state(hid)
+		)
+		hero_position_candidate = str(decision.get("hero_id", hid))
+		hero_position_index = int(decision.get("target_index", 2))
 		hero_position_picker_open = true
 		play_sfx("ui_confirm")
 		queue_redraw()
-
 
 func handle_hero_position_picker_key(key: int) -> void:
 	if key == KEY_ESCAPE or key == KEY_TAB:
 		hero_position_picker_open = false
 		play_sfx("ui_cancel")
+		queue_redraw()
 		return
 	if is_up_key(key) or is_left_key(key):
-		hero_position_index = wrapi(hero_position_index - 1, 0, 4)
+		hero_position_index = HeroRosterControllerScript.wrap_cursor(hero_position_index, -1, 4)
 		play_sfx("ui_move")
+		queue_redraw()
 		return
 	if is_down_key(key) or is_right_key(key):
-		hero_position_index = wrapi(hero_position_index + 1, 0, 4)
+		hero_position_index = HeroRosterControllerScript.wrap_cursor(hero_position_index, 1, 4)
 		play_sfx("ui_move")
+		queue_redraw()
 		return
 	if not is_confirm_key(key):
 		return
 	if hero_position_index == 3:
 		hero_position_picker_open = false
 		play_sfx("ui_cancel")
+		queue_redraw()
 		return
+
 	var hid: String = hero_position_candidate
 	if hid == "" or not heroes.has(hid):
 		hero_position_picker_open = false
+		queue_redraw()
 		return
-	var current_state: String = hero_roster_state(hid)
-	var target_state: String = ["active", "reserve", "camp"][hero_position_index]
-	if current_state == target_state:
-		show_message("%s目前已在%s。" % [heroes[hid]["name"], "主戰" if target_state == "active" else ("後備" if target_state == "reserve" else "營地")], 2.0)
-		hero_position_picker_open = false
-		play_sfx("ui_error")
-		return
-	if target_state == "active" and active_heroes.size() >= active_limit():
-		config_candidate = hid
-		config_replace_mode = "active"
-		config_replace_index = 0
-		hero_position_picker_open = false
-		screen = "config_replace"
-		play_sfx("ui_confirm")
-		return
-	if target_state == "reserve" and reserve_heroes.size() >= reserve_limit():
-		config_candidate = hid
-		config_replace_mode = "reserve"
-		config_replace_index = 0
-		hero_position_picker_open = false
-		screen = "config_replace"
-		play_sfx("ui_confirm")
-		return
-	match target_state:
-		"active":
-			assign_hero_to_active(hid)
-		"reserve":
-			assign_hero_to_reserve(hid)
-		"camp":
-			assign_hero_to_camp(hid)
-	hero_position_picker_open = false
+
+	var decision: Dictionary = HeroRosterControllerScript.resolve_target(
+		hid,
+		hero_position_index,
+		active_heroes,
+		reserve_heroes,
+		camp_heroes,
+		active_limit(),
+		reserve_limit()
+	)
+	var action: StringName = decision.get("action", HeroRosterControllerScript.ACTION_NONE)
+	match action:
+		HeroRosterControllerScript.ACTION_ALREADY_ASSIGNED:
+			var state_id: String = str(decision.get("state", "camp"))
+			var state_label: String = "主戰" if state_id == "active" else ("後備" if state_id == "reserve" else "營地")
+			show_message("%s目前已在%s。" % [heroes[hid]["name"], state_label], 2.0)
+			hero_position_picker_open = false
+			play_sfx("ui_error")
+		HeroRosterControllerScript.ACTION_OPEN_REPLACEMENT:
+			config_candidate = hid
+			config_replace_mode = str(decision.get("mode", "active"))
+			config_replace_index = 0
+			hero_position_picker_open = false
+			screen = "config_replace"
+			play_sfx("ui_confirm")
+		HeroRosterControllerScript.ACTION_MOVE_HERO:
+			match str(decision.get("to", "camp")):
+				"active":
+					assign_hero_to_active(hid)
+				"reserve":
+					assign_hero_to_reserve(hid)
+				_:
+					assign_hero_to_camp(hid)
+			hero_position_picker_open = false
+		_:
+			hero_position_picker_open = false
+	queue_redraw()
 
 func handle_config_replace_key(key: int) -> void:
 	var pool: Array = active_heroes if config_replace_mode == "active" else reserve_heroes
