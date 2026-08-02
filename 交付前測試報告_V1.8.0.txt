@@ -1,0 +1,10 @@
+V1.8.0 交付前測試報告
+
+通過：
+- function_regression_check.py
+- v1741_levelup_input_qa.py
+- v180_choice_story_qa.py
+
+注意：
+- static_verify.py僅接受舊版V1.7名稱，因此版本名稱檢查失敗；其餘專項檢查已通過。
+- 未在本環境啟動Godot 4.7.1，請實測：第一章連續升級、雙名將候選、替換名將、章間存檔，以及中後期Boss變體。

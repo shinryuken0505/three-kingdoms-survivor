@@ -1,0 +1,16 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.6.1 交付前測試報告
+
+修正項目：
+- main.gd:5229 的 draw_texture_rect() 補上 Godot 4.x 必要的 tile 參數 false。
+- 全專案掃描 draw_texture_rect() 與 draw_texture_rect_region() 的最低參數數量。
+
+通過項目：
+- STATIC_VERIFY_OK（107 PNG、22 WAV、77 資源路徑）
+- FUNCTION_REGRESSION_CHECK_OK
+- V076_REGRESSION_OK
+- LOGIC_SIMULATION_OK（Boss 5000 輪、敵軍抽樣 250000 次、40 分鐘效能模型、存檔與 HUD 模型）
+- Python 工具語法編譯通過
+- ZIP 完整性檢查通過
+
+限制：
+- 製作容器沒有可執行的 Godot 4.7.1，因此實際引擎解析仍需由 Windows 版 Run_Diagnostics.bat 驗證。

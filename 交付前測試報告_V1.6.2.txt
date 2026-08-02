@@ -1,0 +1,15 @@
+《三國人生錄：亂世倖存》V1.6.2 交付前測試報告
+
+已執行：
+- static_verify.py：通過（280 個檔案、146 PNG、44 WAV、106 資源引用）
+- function_regression_check.py：通過
+- logic_simulation_test.py：通過（5,000 次戰役、250,000 次權重抽樣、40 分鐘效能邏輯）
+- v077_regression_test.py：通過
+- v076_regression_test.py：通過
+
+本次新增檢查：
+- Music／SFX／UI／Voice 音訊匯流排存在
+- 新增 WAV 可讀取
+- 音效優先級、頻率限制與播放池程式結構完整
+
+限制：目前環境沒有 Godot 4.7 執行檔，無法實際聆聽混音、確認匯流排載入結果或進行真人操作測試。請在本機優先測試大量敵軍、Boss 登場、勝利結算與商店 UI 的音量平衡。

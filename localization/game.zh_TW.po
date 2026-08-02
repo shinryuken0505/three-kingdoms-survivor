@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Demo6 v0.8.1\n"
+"Language: zh_TW\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "ui.shop.title"
+msgstr "行商貨棧"
+
+msgid "ui.coins"
+msgstr "持有銅錢：{coins}"
+
+msgid "ui.not_enough_coins"
+msgstr "銅錢不足。"
+
+msgid "ui.leave"
+msgstr "離開"
+
+msgid "ui.next_chapter"
+msgstr "查看下一章"
+
+msgid "ui.return_menu"
+msgstr "返回主選單"

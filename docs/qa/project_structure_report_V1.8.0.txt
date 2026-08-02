@@ -1,0 +1,14 @@
+Project: 三國人生錄_亂世倖存_V1.8.0_亂世抉擇整合版
+GDScript files: 4
+- scripts/chapter_manager.gd: 210 lines, 32 functions
+- scripts/game_data.gd: 1227 lines, 0 functions
+- scripts/history_event_data.gd: 274 lines, 0 functions
+- scripts/main.gd: 8358 lines, 264 functions
+  input: 18
+  draw: 44
+  update: 16
+  save: 13
+assets: 190 files
+localization: 4 files
+docs: 25 files
+tools: 21 files

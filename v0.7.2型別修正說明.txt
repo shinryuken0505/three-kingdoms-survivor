@@ -1,0 +1,9 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.2 型別修正版
+
+修正內容：
+1. 修正 main.gd 原第4595行的 build 變數型別錯誤。
+2. build_summary() 回傳 String，接收變數同步改為 String。
+3. 修正後 draw_wrapped() 收到正確的 String 參數。
+4. 靜態檢查新增回傳型別一致性掃描，避免同類型錯誤再次漏過。
+
+請解壓縮到全新資料夾後，先執行 Run_Diagnostics.bat，再啟動遊戲。

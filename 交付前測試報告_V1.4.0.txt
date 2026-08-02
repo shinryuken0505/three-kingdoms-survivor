@@ -1,0 +1,12 @@
+《三國人生錄：亂世倖存》V1.4.0 交付前測試報告
+
+已完成
+- static_verify.py：通過
+- function_regression_check.py：通過
+- logic_simulation_test.py：通過（5,000次章節流程、250,000次權重抽樣）
+- v077_regression_test.py：通過
+- GDScript括號、字串、重複函式與資源引用靜態檢查：通過
+- 章回三頁輸入狀態與奇遇選擇／結果狀態分流檢查：通過
+
+限制
+目前執行環境未安裝Godot，因此未能進行實際遊戲啟動、畫面縮放、鍵盤手感與GPU渲染測試。請於Godot 4.x環境優先測試章回翻頁、奇遇結果頁及不同解析度排版。

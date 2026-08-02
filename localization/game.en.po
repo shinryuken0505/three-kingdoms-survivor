@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Demo6 v0.8.1\n"
+"Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "ui.shop.title"
+msgstr "Merchant Caravan"
+
+msgid "ui.coins"
+msgstr "Coins: {coins}"
+
+msgid "ui.not_enough_coins"
+msgstr "Not enough coins."
+
+msgid "ui.leave"
+msgstr "Leave"
+
+msgid "ui.next_chapter"
+msgstr "View Next Chapter"
+
+msgid "ui.return_menu"
+msgstr "Return to Main Menu"

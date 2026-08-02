@@ -1,0 +1,28 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.5.1 交付前測試報告
+
+修正目標：
+- 修正 Run_Diagnostics.bat 顯示「章間存檔建立失效」的假失敗。
+
+根因：
+- save_run_checkpoint() 在 self_test_mode 下直接 return，導致診斷程式永遠無法建立記憶體中的章間存檔。
+- 正式遊戲模式原本不受此條件阻擋，但診斷結果會誤判失敗。
+
+修正：
+- self_test_mode 不再阻擋記憶體章間存檔建立。
+- save_run_checkpoint() 與 save_game_meta() 改回傳成功狀態。
+- 正式寫檔加入 flush。
+- Headless 診斷不寫入玩家正式 user:// 存檔。
+- 新增 JSON 序列化／反序列化往返驗證。
+
+已執行：
+- tools/static_verify.py：STATIC_VERIFY_OK
+- tools/logic_simulation_test.py：LOGIC_SIMULATION_OK
+- tools/function_regression_check.py：FUNCTION_REGRESSION_CHECK_OK
+- PNG：97
+- WAV：22
+- Godot資源引用：77
+- 五章Boss狀態模擬：5,000輪
+- 敵兵生成抽樣：250,000次
+- 效能累積模型：40分鐘
+
+仍需使用 Windows Godot 4.7.1 執行 Run_Diagnostics.bat，確認實際引擎輸出 DEMO6_SELF_TEST_OK。

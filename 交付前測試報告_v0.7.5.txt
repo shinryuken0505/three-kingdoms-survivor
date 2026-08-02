@@ -1,0 +1,27 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.5 交付前測試報告
+
+【通過】
+- gdparse：main.gd、game_data.gd、chapter_manager.gd、history_event_data.gd
+- gdlint：全部GDScript無問題
+- static_verify.py：97張PNG、22個WAV、77個res://路徑及啟動器檢查
+- function_regression_check.py：核心函式無遺失
+- logic_simulation_test.py：
+  ・5,000次五章Boss狀態流程
+  ・250,000次敵軍權重抽樣
+  ・40分鐘物件累積壓力模型
+  ・10組史勢奇遇條件
+  ・章間存檔資料模型
+  ・HUD安全區與勝敗選項
+- ZIP完整性與SHA-256檢查
+
+【效能修正檢查】
+- 敵軍空間索引建立與附近查詢
+- 遠距AI分幀更新
+- 投射物及區域傷害局部碰撞查詢
+- 傷害數字負載降頻
+- 同類音效節流
+- 自適應效能保護L0～L2
+- 章節切換後索引與效能狀態清除
+
+【限制】
+製作容器內的Godot Linux執行檔為空檔，無法執行實際Godot圖形或headless引擎。玩家端應先執行Run_Diagnostics.bat，確認DEMO6_SELF_TEST_OK後再進行長時間實玩。

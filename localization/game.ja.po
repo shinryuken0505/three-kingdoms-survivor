@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Demo6 v0.8.1\n"
+"Language: ja\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "ui.shop.title"
+msgstr "行商の荷車"
+
+msgid "ui.coins"
+msgstr "所持銭：{coins}"
+
+msgid "ui.not_enough_coins"
+msgstr "銭が足りません。"
+
+msgid "ui.leave"
+msgstr "離れる"
+
+msgid "ui.next_chapter"
+msgstr "次の章を見る"
+
+msgid "ui.return_menu"
+msgstr "メインメニューへ"

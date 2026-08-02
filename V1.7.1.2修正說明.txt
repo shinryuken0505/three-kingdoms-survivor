@@ -1,0 +1,6 @@
+V1.7.1.2 Boss自我測試修正版
+
+修正內容：
+1. 修正自我測試在 start_run() 後仍停留於 chapter_intro，導致 update_boss() 依正式流程拒絕生成 Boss，誤報「Boss首次生成狀態錯誤」。
+2. 自我測試現在會先模擬完成章回開場並切回 game，再驗證 Boss 從 LOCKED → INTRO → ACTIVE → DEFEATED → RESOLVED 的完整狀態流程。
+3. 不變更實際遊戲 Boss 數值、生成時間與戰鬥邏輯。

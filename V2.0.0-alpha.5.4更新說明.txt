@@ -1,0 +1,6 @@
+V2.0.0-alpha.5.4 升級選擇輸入穩定修正版
+
+- 升級畫面改用獨立輸入路徑，Space／Enter／數字鍵盤 Enter 直接確認。
+- 新增 _unhandled_key_input 第二層保險，處理 Windows GUI 焦點吃掉 Space。
+- 方向操作及確認後立即要求重繪。
+- 保留戰鬥 Space／Shift 閃避、名將遭遇灰屏與銅錢變數修正。

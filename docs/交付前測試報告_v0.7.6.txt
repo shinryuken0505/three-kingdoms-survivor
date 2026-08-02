@@ -1,0 +1,22 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.6 交付前測試報告
+
+已完成：
+1. GDScript函式回歸檢查：FUNCTION_REGRESSION_CHECK_OK
+2. 靜態結構、括號、型別宣告、資源路徑、圖片及WAV驗證：STATIC_VERIFY_OK
+3. v0.7.6功能回歸：V076_REGRESSION_OK
+4. 五章Boss狀態、敵軍權重、40分鐘物件壓力、奇遇與章間存檔模型：LOGIC_SIMULATION_OK
+5. ZIP完整性檢查
+
+驗證範圍包含：
+- 閃避冷卻與HUD字串
+- 主動名將限定奇遇
+- Tab後備名將捲動
+- 存檔入口與提示
+- 四種新兵種
+- 雙將壓陣資料
+- 呂布數值與頻率
+- 張飛向外震波
+- BGM長度、格式與重試邏輯
+
+限制：
+此製作環境沒有可執行的Godot 4.7.1，因此無法在容器內宣稱已完成實際引擎畫面測試。包內Run_Diagnostics.bat會在使用者電腦以Godot 4.7.1執行真正的headless自測；若未出現DEMO6_SELF_TEST_OK，請提供Demo6_Diagnostic.log。

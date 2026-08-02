@@ -1,0 +1,20 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.1・群雄篇修正版
+交付前測試報告
+
+通過項目：
+1. gdparse：main.gd、game_data.gd、chapter_manager.gd 全部解析成功。
+2. gdlint：三份GDScript無檢查錯誤。
+3. 靜態完整性：131個檔案、84張PNG、16個WAV、75個資源引用通過。
+4. 媒體檢查：所有PNG可完整解碼；所有WAV可讀且具有有效音訊長度。
+5. 章節模擬：5,000次五章Boss狀態機完整通過，已結算Boss不會回到生成狀態。
+6. 兵種模擬：250,000次敵兵權重抽樣，未產生未知兵種。
+7. HUD檢查：遺物、章節、Boss、小地圖、玩家狀態、名將卡與訊息主要區塊無碰撞。
+8. 遺物循環：五章精英／寶箱／Boss來源模擬可取得15件不重複遺物。
+9. 啟動器：純BAT、CRLF格式、安全使用%CD%專案路徑，不使用PowerShell。
+
+本次熱修確認：
+- 已修正 main.gd:2377「文姬歸漢」條件區塊的縮排。
+- 全部GDScript已由gdformat重新格式化，並再次通過gdparse與gdlint。
+
+限制：
+製作環境中的Godot 4.7.1 Linux壓縮檔為0位元空檔，因此未能在製作容器內啟動Godot圖形引擎。專案內建Run_Diagnostics.bat，會使用測試者電腦上的Godot 4.7.1執行真正的headless自動測試。建議遊玩前先執行並確認出現DEMO6_SELF_TEST_OK。

@@ -1,0 +1,10 @@
+《三國人生錄：亂世倖存》V1.1.0 交付前測試報告
+
+已通過：
+- static_verify.py
+- logic_simulation_test.py（5000輪章節模擬）
+- v077_regression_test.py
+- function_regression_check.py
+
+本環境未安裝Godot執行檔，因此未進行實際引擎啟動與手動操作測試。
+請優先測試：商人裝備購買、TAB裝備切換、Boss戰利品結算、章間存檔。

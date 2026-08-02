@@ -1,0 +1,16 @@
+《三國人生錄：亂世倖存》V2.0.0-alpha.5.1 啟動錯誤修正
+
+修正內容：
+- 修正 scripts/main.gd 第4870行使用未宣告區域變數 coins，導致 GDScript Parse Error。
+- 專案貨幣實際儲存在 player["coins"]，已改用既有玩家資料結構累加蔡文姬傳奇能力的銅錢獎勵。
+- 後續出現的 Thread、RID、PagedAllocator 等訊息，是腳本解析失敗後強制中止所衍生的清理警告，並非本次獨立的遊戲邏輯錯誤。
+
+修正前：
+    coins += 2 + lv
+
+修正後：
+    player["coins"] = int(player.get("coins", 0)) + 2 + lv
+
+驗證：
+- tools/static_smoke_test.py 通過。
+- 本環境未安裝 Godot 4.7.1，仍需於 Windows 實際啟動確認。

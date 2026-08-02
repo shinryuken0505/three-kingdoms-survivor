@@ -1,0 +1,9 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.5.2 交付前測試報告
+
+已執行：
+- gdparse：4份GDScript通過。
+- gdlint：依專案gdlintrc通過。
+- tools/static_verify.py：資源、版本、HUD安全框、hit stop回歸規則通過。
+- ZIP完整性與SHA-256檢查。
+
+實機仍請先執行Run_Diagnostics.bat，再進入第三章確認章節資訊與4名主動名將卡片對齊。

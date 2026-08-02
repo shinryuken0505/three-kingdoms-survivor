@@ -1,0 +1,2 @@
+STATIC SMOKE TEST: PASS
+Note: this is not a Godot runtime or gameplay test.

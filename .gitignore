@@ -1,0 +1,32 @@
+# Godot 4+ generated files
+.godot/
+
+# Godot export / build outputs
+build/
+dist/
+exports/
+*.exe
+*.pck
+*.zip
+
+# Local editor / OS files
+.vscode/
+.idea/
+*.tmp
+*.bak
+*.log
+Thumbs.db
+.DS_Store
+
+# Local paths and diagnostics
+Godot_Path.txt
+user_data/
+saves/
+
+# Python caches used by QA tools
+__pycache__/
+*.pyc
+
+# Optional: generated QA screenshots/reports
+qa_output/
+render_output/

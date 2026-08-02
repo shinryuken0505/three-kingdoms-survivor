@@ -1,0 +1,317 @@
+[
+  {
+    "file": "caiwenji_default.png",
+    "skin": [
+      244,
+      190,
+      161
+    ],
+    "changed_pixels": 1847
+  },
+  {
+    "file": "caocao_default.png",
+    "skin": [
+      214,
+      161,
+      123
+    ],
+    "changed_pixels": 54
+  },
+  {
+    "file": "chengong_default.png",
+    "skin": [
+      214,
+      162,
+      124
+    ],
+    "changed_pixels": 53
+  },
+  {
+    "file": "daqiao_default.png",
+    "skin": [
+      247,
+      196,
+      172
+    ],
+    "changed_pixels": 1846
+  },
+  {
+    "file": "diaochan_default.png",
+    "skin": [
+      247,
+      194,
+      169
+    ],
+    "changed_pixels": 1847
+  },
+  {
+    "file": "dongzhuo_default.png",
+    "skin": [
+      189,
+      127,
+      89
+    ],
+    "changed_pixels": 354
+  },
+  {
+    "file": "fazheng_default.png",
+    "skin": [
+      214,
+      162,
+      124
+    ],
+    "changed_pixels": 53
+  },
+  {
+    "file": "gaoshun_default.png",
+    "skin": [
+      197,
+      145,
+      109
+    ],
+    "changed_pixels": 20
+  },
+  {
+    "file": "guanyu_young.png",
+    "skin": [
+      212,
+      154,
+      112
+    ],
+    "changed_pixels": 58
+  },
+  {
+    "file": "heroine_default.png",
+    "skin": [
+      232,
+      171,
+      132
+    ],
+    "changed_pixels": 44
+  },
+  {
+    "file": "huangzhong_default.png",
+    "skin": [
+      210,
+      162,
+      126
+    ],
+    "changed_pixels": 2
+  },
+  {
+    "file": "huatuo_default.png",
+    "skin": [
+      210,
+      162,
+      126
+    ],
+    "changed_pixels": 2
+  },
+  {
+    "file": "huaxiong_default.png",
+    "skin": [
+      201,
+      130,
+      93
+    ],
+    "changed_pixels": 196
+  },
+  {
+    "file": "hunter_default.png",
+    "skin": [
+      220,
+      159,
+      112
+    ],
+    "changed_pixels": 44
+  },
+  {
+    "file": "liru_default.png",
+    "skin": [
+      208,
+      154,
+      116
+    ],
+    "changed_pixels": 54
+  },
+  {
+    "file": "luxun_default.png",
+    "skin": [
+      210,
+      161,
+      126
+    ],
+    "changed_pixels": 4
+  },
+  {
+    "file": "lvbu_default.png",
+    "skin": [
+      209,
+      138,
+      91
+    ],
+    "changed_pixels": 48
+  },
+  {
+    "file": "lvlingqi_default.png",
+    "skin": [
+      235,
+      174,
+      147
+    ],
+    "changed_pixels": 1910
+  },
+  {
+    "file": "poisoner_default.png",
+    "skin": [
+      218,
+      157,
+      110
+    ],
+    "changed_pixels": 44
+  },
+  {
+    "file": "simayi_default.png",
+    "skin": [
+      214,
+      161,
+      123
+    ],
+    "changed_pixels": 54
+  },
+  {
+    "file": "sunjian_default.png",
+    "skin": [
+      211,
+      154,
+      114
+    ],
+    "changed_pixels": 51
+  },
+  {
+    "file": "sunshangxiang_default.png",
+    "skin": [
+      239,
+      181,
+      147
+    ],
+    "changed_pixels": 1908
+  },
+  {
+    "file": "swordsman_default.png",
+    "skin": [
+      224,
+      164,
+      116
+    ],
+    "changed_pixels": 44
+  },
+  {
+    "file": "taishici_default.png",
+    "skin": [
+      210,
+      161,
+      126
+    ],
+    "changed_pixels": 4
+  },
+  {
+    "file": "wangyi_default.png",
+    "skin": [
+      231,
+      169,
+      143
+    ],
+    "changed_pixels": 1915
+  },
+  {
+    "file": "weiyan_default.png",
+    "skin": [
+      190,
+      119,
+      75
+    ],
+    "changed_pixels": 824
+  },
+  {
+    "file": "xiahouen_default.png",
+    "skin": [
+      205,
+      139,
+      93
+    ],
+    "changed_pixels": 382
+  },
+  {
+    "file": "xiahouyuan_default.png",
+    "skin": [
+      205,
+      139,
+      93
+    ],
+    "changed_pixels": 382
+  },
+  {
+    "file": "zhangfei_default.png",
+    "skin": [
+      190,
+      119,
+      75
+    ],
+    "changed_pixels": 824
+  },
+  {
+    "file": "zhangjiao_default.png",
+    "skin": [
+      209,
+      164,
+      127
+    ],
+    "changed_pixels": 2
+  },
+  {
+    "file": "zhangliang_default.png",
+    "skin": [
+      191,
+      142,
+      104
+    ],
+    "changed_pixels": 23
+  },
+  {
+    "file": "zhaoyun_default.png",
+    "skin": [
+      198,
+      132,
+      88
+    ],
+    "changed_pixels": 924
+  },
+  {
+    "file": "zhenji_default.png",
+    "skin": [
+      244,
+      194,
+      172
+    ],
+    "changed_pixels": 1849
+  },
+  {
+    "file": "zhouyu_default.png",
+    "skin": [
+      211,
+      154,
+      114
+    ],
+    "changed_pixels": 51
+  },
+  {
+    "file": "zhugeliang_default.png",
+    "skin": [
+      208,
+      154,
+      116
+    ],
+    "changed_pixels": 54
+  }
+]

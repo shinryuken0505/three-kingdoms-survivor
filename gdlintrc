@@ -1,0 +1,7 @@
+disable:
+- max-line-length
+- max-file-lines
+- max-public-methods
+- unused-argument
+
+- max-returns

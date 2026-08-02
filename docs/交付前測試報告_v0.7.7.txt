@@ -1,0 +1,18 @@
+《三國人生錄：亂世倖存》Demo6 v0.7.7 交付前測試報告
+
+測試輪次一
+1. Python工具語法編譯：通過。
+2. 圖像、音訊、資源路徑及GDScript基本結構：STATIC_VERIFY_OK。
+3. 必要函式回歸：FUNCTION_REGRESSION_CHECK_OK。
+4. v0.7.6既有功能回歸：V076_REGRESSION_OK。
+5. Boss狀態、兵種抽樣、40分鐘物件上限及章間存檔模型：LOGIC_SIMULATION_OK。
+
+測試輪次二
+1. v0.7.7戰場尺寸、角色縮放、出生距離、面向與刀光方向：V077_REGRESSION_OK。
+2. 四名初始角色臉部中央黑色遮罩檢測：通過。
+3. 八組戰鬥小人4幀圖尺寸及透明通道：通過。
+4. draw_texture_rect、draw_texture_rect_region、draw_arc與draw_circle參數數量掃描：通過。
+5. 修改區塊縮排、括號、引號及重複函式掃描：通過。
+
+限制
+目前製作環境無可執行的Godot 4.7.1 Linux本體，因此以上為靜態、資源及邏輯模擬檢查，未宣稱為引擎實機測試。請在Windows解壓後先執行Run_Diagnostics.bat，以Godot 4.7.1完成最終腳本載入與自我測試。
