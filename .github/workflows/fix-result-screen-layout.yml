@@ -1,0 +1,37 @@
+name: Fix result screen layout
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/fix_result_screen_layout.py
+      - .github/workflows/fix-result-screen-layout.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply result screen layout patch
+        run: python tools/fix_result_screen_layout.py
+
+      - name: Commit patched main.gd
+        run: |
+          if git diff --quiet -- scripts/main.gd; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "fix: align chapter result screen"
+          git push origin HEAD:feature/alpha17-ending
