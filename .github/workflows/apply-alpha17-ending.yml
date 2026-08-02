@@ -1,0 +1,54 @@
+name: Apply Alpha.17 Ending Integration
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - .github/workflows/apply-alpha17-ending.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-ending:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Correct patch target and apply integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tools/apply_alpha17_ending_patch.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace("'\\t\\tpending_boss_loot.clear()\\n\\t\\tboss_ability_banner.clear()'", "'\\tpending_boss_loot.clear()\\n\\tboss_ability_banner.clear()'")
+          s = s.replace("'\\t\\tpending_boss_loot.clear()\\n\\t\\tending_snapshot.clear()\\n\\t\\tending_committed = false\\n\\t\\tboss_ability_banner.clear()'", "'\\tpending_boss_loot.clear()\\n\\tending_snapshot.clear()\\n\\tending_committed = false\\n\\tboss_ability_banner.clear()'")
+          p.write_text(s, encoding='utf-8')
+          PY
+          python tools/apply_alpha17_ending_patch.py
+
+      - name: Validate integration markers
+        run: |
+          grep -q 'const GAME_VERSION: String = "V2.0.0-alpha.17"' scripts/main.gd
+          grep -q 'func finalize_campaign_ending()' scripts/main.gd
+          grep -q 'func draw_ending_screen()' scripts/main.gd
+          grep -q 'screen = "ending"' scripts/main.gd
+          grep -q 'chapter_manager.is_final_chapter()' scripts/main.gd
+
+      - name: Commit integrated ending flow
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd tools/apply_alpha17_ending_patch.py
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "feat: integrate Alpha.17 final ending flow"
+            git push origin feature/alpha17-ending
+          fi
