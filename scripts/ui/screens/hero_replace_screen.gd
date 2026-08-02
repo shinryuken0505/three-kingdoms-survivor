@@ -34,17 +34,21 @@ static func layout(item_count: int, view_size: Vector2 = VIEW_SIZE) -> Dictionar
 
 
 static func row_rects(area: Rect2, item_count: int) -> Array[Rect2]:
-	var result: Array[Rect2] = []
 	if item_count <= 0:
-		return result
+		return []
 	var gap: float = 8.0
-	var row_height: float = maxf(0.0, minf(54.0, (area.size.y - gap * float(item_count - 1)) / float(item_count)))
-	for index in range(item_count):
-		result.append(Rect2(
-			Vector2(area.position.x, area.position.y + float(index) * (row_height + gap)),
-			Vector2(area.size.x, row_height)
-		))
-	return result
+	var natural_height: float = maxf(0.0, (area.size.y - gap * float(item_count - 1)) / float(item_count))
+	var row_height: float = minf(54.0, natural_height)
+	var used_height: float = row_height * float(item_count) + gap * float(item_count - 1)
+	var aligned_area := Rect2(
+		Vector2(area.position.x, area.position.y + maxf(0.0, (area.size.y - used_height) * 0.5)),
+		Vector2(area.size.x, used_height)
+	)
+	return TextLayout.row_rects(aligned_area, item_count, gap)
+
+
+static func option_style(selected: bool, enabled: bool = true) -> Dictionary:
+	return MenuOptionRenderer.style(selected, enabled)
 
 
 static func normalized_index(index: int, item_count: int) -> int:
