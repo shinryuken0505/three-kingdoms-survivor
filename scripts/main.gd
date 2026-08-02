@@ -1795,6 +1795,7 @@ func handle_hero_config_key(key: int) -> void:
 		hero_position_index = 0 if current_state == "active" else (1 if current_state == "reserve" else 2)
 		hero_position_picker_open = true
 		play_sfx("ui_confirm")
+		queue_redraw()
 
 
 func handle_hero_position_picker_key(key: int) -> void:
@@ -9165,7 +9166,32 @@ func draw_hero_config_screen() -> void:
 	draw_text("Enter／Space 調整位置", detail_panel.position + Vector2(198, 294), 14, Color8(230, 211, 168), true)
 
 	draw_text("↑↓選擇名將　Enter／Space調整位置　Esc／Tab返回", Vector2(root.position.x + root.size.x - 36, root.end.y - 17), 13, Color8(181, 189, 181), false, HORIZONTAL_ALIGNMENT_RIGHT, 640)
+	if hero_position_picker_open:
+		draw_hero_position_picker()
 
+
+func draw_hero_position_picker() -> void:
+	draw_rect(Rect2(Vector2.ZERO, VIEW), Color(0.0, 0.0, 0.0, 0.66), true)
+	var panel: Rect2 = Rect2(335, 132, 610, 456)
+	draw_panel(panel, Color(0.028, 0.034, 0.035, 0.995), Color8(215, 181, 105), 2.2)
+	var hid: String = hero_position_candidate
+	var hero_name: String = str(heroes.get(hid, {}).get("name", hid))
+	draw_centered_text("調整%s的編成位置" % hero_name, panel, 54.0, 28, Color8(239, 215, 159), true)
+	draw_centered_text("欄位未滿時直接編入；已滿時再選擇替換名將。", panel, 88.0, 14, Color8(180, 190, 181))
+	var labels: Array[String] = ["主戰", "後備", "營地", "取消"]
+	var descriptions: Array[String] = [
+		"跟隨出戰，可施放主動技能。",
+		"提供後備能力與羈絆效果。",
+		"暫不參戰，也不提供後備效果。",
+		"保持目前編成位置。"
+	]
+	for i in range(labels.size()):
+		var r: Rect2 = Rect2(panel.position.x + 52, panel.position.y + 120 + i * 74, panel.size.x - 104, 60)
+		var selected: bool = i == hero_position_index
+		draw_panel(r, Color(0.42, 0.30, 0.13, 0.94) if selected else Color(0.045, 0.051, 0.051, 0.98), Color8(230, 194, 112) if selected else Color8(96, 99, 91), 1.8 if selected else 1.0)
+		draw_text(("▶ " if selected else "　") + labels[i], r.position + Vector2(18, 27), 19, Color8(241, 224, 185), selected)
+		draw_text(descriptions[i], r.position + Vector2(142, 26), 14, Color8(191, 201, 191), false, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 158)
+	draw_centered_text("↑↓選擇　Enter／Space確認　Esc取消", panel, 430.0, 13, Color8(169, 178, 169))
 
 func draw_config_replace_screen() -> void:
 	draw_overlay_backdrop()
