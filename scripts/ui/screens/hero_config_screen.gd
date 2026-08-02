@@ -46,16 +46,7 @@ static func layout(view_size: Vector2 = VIEW_SIZE) -> Dictionary:
 
 
 static func visible_rows(total_count: int, selected_index: int, max_rows: int = 9) -> Dictionary:
-	if total_count <= 0:
-		return {"start": 0, "end": 0, "selected": 0}
-	var selected: int = clampi(selected_index, 0, total_count - 1)
-	var half: int = maxi(1, max_rows / 2)
-	var start: int = clampi(selected - half, 0, maxi(0, total_count - max_rows))
-	return {
-		"start": start,
-		"end": mini(total_count, start + max_rows),
-		"selected": selected,
-	}
+	return TextLayout.visible_range(total_count, selected_index, max_rows)
 
 
 static func state_label_key(state: StringName) -> StringName:
@@ -68,6 +59,10 @@ static func state_label_key(state: StringName) -> StringName:
 			return &"ui.hero_config.state.camp"
 		_:
 			return &"ui.hero_config.state.unknown"
+
+
+static func state_badge_colors(state: StringName) -> Dictionary:
+	return StatusBadgeRenderer.state_colors(state)
 
 
 static func footer_hint_keys(position_picker_open: bool, replacement_open: bool) -> Array[StringName]:
