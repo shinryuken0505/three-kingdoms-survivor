@@ -1,0 +1,38 @@
+name: Fix hero role dictionary
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/fix_hero_role_dictionary.py
+      - .github/workflows/fix-hero-role-dictionary.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply repair
+        run: python tools/fix_hero_role_dictionary.py
+
+      - name: Commit repaired script
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "fix: repair malformed hero role dictionary"
+          git push origin feature/alpha17-ending
