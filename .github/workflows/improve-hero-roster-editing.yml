@@ -1,0 +1,38 @@
+name: Improve hero roster editing
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/improve_hero_roster_editing.py
+      - .github/workflows/improve-hero-roster-editing.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-improvement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply roster editing improvement
+        run: python tools/improve_hero_roster_editing.py
+
+      - name: Commit improved roster editing
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "feat: improve active reserve and camp roster editing"
+          git push origin feature/alpha17-ending
