@@ -37,20 +37,18 @@ static func hud_layout(
 ) -> Array[Dictionary]:
 	var visible_count: int = mini(MAX_HUD_ITEMS, view_models.size())
 	var result: Array[Dictionary] = []
+	var columns: int = maxi(1, int(floor((anchor.size.x + ICON_GAP) / (ICON_SIZE.x + ICON_GAP))))
 	for index in range(visible_count):
 		var model: Dictionary = view_models[index] as Dictionary
+		var row: int = floori(float(index) / float(columns))
+		var column: int = index % columns
 		var rect := Rect2(
-			Vector2(anchor.position.x + float(index) * (ICON_SIZE.x + ICON_GAP), anchor.position.y),
-			ICON_SIZE
-		)
-		if rect.end.x > anchor.end.x:
-			var columns: int = maxi(1, int(floor((anchor.size.x + ICON_GAP) / (ICON_SIZE.x + ICON_GAP))))
-			var row: int = index / columns
-			var column: int = index % columns
-			rect.position = anchor.position + Vector2(
+			anchor.position + Vector2(
 				float(column) * (ICON_SIZE.x + ICON_GAP),
 				float(row) * (ICON_SIZE.y + 18.0)
-			)
+			),
+			ICON_SIZE
+		)
 		result.append(_slot(model, rect, index))
 	return result
 
