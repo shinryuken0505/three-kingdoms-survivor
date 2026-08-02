@@ -1692,6 +1692,13 @@ func assign_hero_roster(hid: String, target: String) -> void:
 
 
 
+func sync_roster_after_change() -> void:
+	update_bonds()
+	if hero_config_origin == "intermission":
+		save_run_checkpoint()
+
+
+
 func hero_roster_state(hid: String) -> String:
 	return HeroRosterManagerScript.state_of(hid, active_heroes, reserve_heroes, camp_heroes)
 
