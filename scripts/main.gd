@@ -5313,9 +5313,9 @@ func try_trigger_hero(hid: String, manual: bool) -> void:
 					if i < enemies.size():
 						var diff: Vector2 = enemies[i]["pos"] - center
 						if diff.length() <= wave_radius and abs(wrapf(diff.angle() - dir.angle(), -PI, PI)) <= 0.78:
-						var live_index: int = damage_enemy(i, 8.0 + lv * 2.2, "caiwenji", false)
-						if live_index >= 0:
-							enemies[live_index]["knock"] += (
+							var live_index: int = damage_enemy(i, 8.0 + lv * 2.2, "caiwenji", false)
+							if live_index >= 0:
+								enemies[live_index]["knock"] += (
 								(enemies[live_index]["pos"] - center).normalized()
 								* (170.0 + wave * 35.0)
 							)
