@@ -1,0 +1,45 @@
+name: Apply Alpha.17 Ending Persistence
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - .github/workflows/apply-alpha17-ending-persistence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-persistence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply ending persistence patch
+        run: python tools/apply_alpha17_ending_persistence.py
+
+      - name: Validate persistence markers
+        run: |
+          grep -q '"endings": {}' scripts/main.gd
+          grep -q 'save_data\["latest_ending"\]' scripts/main.gd
+          grep -q 'screen in \["game_over", "victory", "ending", "intermission"\]' scripts/main.gd
+          grep -q '敵將猛攻——避開殺陣' scripts/main.gd
+          grep -q 'V2.0.0 Alpha.17・亂世終卷' scripts/main.gd
+
+      - name: Commit persistence integration
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "feat: persist Alpha.17 ending records"
+            git push origin feature/alpha17-ending
+          fi
