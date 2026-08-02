@@ -1,0 +1,38 @@
+name: Fix boss loot layout
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - tools/fix_boss_loot_layout.py
+      - .github/workflows/fix-boss-loot-layout.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Apply layout repair
+        run: python tools/fix_boss_loot_layout.py
+
+      - name: Commit repaired layout
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "fix: align boss loot screen layout"
+          git push origin feature/alpha17-ending
