@@ -10,6 +10,7 @@ const POISON: StringName = &"poison"
 const BURN: StringName = &"burn"
 const SLOW: StringName = &"slow"
 const STUN: StringName = &"stun"
+const SMOKE: StringName = &"smoke"
 const SILENCE: StringName = &"silence"
 const BLEED: StringName = &"bleed"
 const VULNERABLE: StringName = &"vulnerable"
@@ -24,6 +25,7 @@ static func all() -> Dictionary:
 		POISON: _definition(POISON, "res://assets/icons/status/poison.png", 90, STACK_ADD, 9),
 		BURN: _definition(BURN, "res://assets/icons/status/burn.png", 85, STACK_REFRESH, 1),
 		STUN: _definition(STUN, "res://assets/icons/status/stun.png", 100, STACK_REFRESH, 1),
+		SMOKE: _definition(SMOKE, "res://assets/icons/status/smoke.png", 72, STACK_REFRESH, 1),
 		SILENCE: _definition(SILENCE, "res://assets/icons/status/silence.png", 95, STACK_REFRESH, 1),
 		SLOW: _definition(SLOW, "res://assets/icons/status/slow.png", 70, STACK_REFRESH, 1),
 		BLEED: _definition(BLEED, "res://assets/icons/status/bleed.png", 80, STACK_ADD, 9),
