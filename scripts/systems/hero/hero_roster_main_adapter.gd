@@ -3,12 +3,12 @@ extends RefCounted
 
 ## 提供 main.gd 可直接呼叫的名將整備接線入口。
 ##
-## 此層包裝 FlowCoordinator、Feedback 與 Presenter，回傳：
-## - 更新後的舊欄位值
-## - 是否切換畫面
-## - 是否更新編成與存檔
-## - 音效 ID 與已本地化提示文字
-## main.gd 後續只需套用結果，不再重複判斷三層輸入流程。
+## 明確 preload 相依腳本，避免 Godot 在掃描多個 class_name 時因解析順序
+## 導致 Adapter 被誤判為 parser error。
+
+const FlowCoordinatorScript = preload("res://scripts/systems/hero/hero_roster_flow_coordinator.gd")
+const FeedbackScript = preload("res://scripts/systems/hero/hero_roster_feedback.gd")
+const FeedbackPresenterScript = preload("res://scripts/systems/hero/hero_roster_feedback_presenter.gd")
 
 
 static func handle_key(
@@ -22,7 +22,7 @@ static func handle_key(
 	reserve_capacity: int,
 	hero_defs: Dictionary
 ) -> Dictionary:
-	var flow: Dictionary = HeroRosterFlowCoordinator.handle_key(
+	var flow: Dictionary = FlowCoordinatorScript.handle_key(
 		key,
 		legacy_state,
 		hero_order,
@@ -46,7 +46,7 @@ static func handle_action(
 	reserve_capacity: int,
 	hero_defs: Dictionary
 ) -> Dictionary:
-	var flow: Dictionary = HeroRosterFlowCoordinator.handle_action(
+	var flow: Dictionary = FlowCoordinatorScript.handle_action(
 		action,
 		legacy_state,
 		hero_order,
@@ -60,9 +60,9 @@ static func handle_action(
 
 
 static func _build_result(flow: Dictionary, hero_defs: Dictionary) -> Dictionary:
-	var feedback: Dictionary = HeroRosterFeedback.from_flow(flow)
-	var presentation: Dictionary = HeroRosterFeedbackPresenter.present(feedback, hero_defs)
-	var command: StringName = StringName(flow.get("ui_command", HeroRosterFlowCoordinator.UI_NONE))
+	var feedback: Dictionary = FeedbackScript.from_flow(flow)
+	var presentation: Dictionary = FeedbackPresenterScript.present(feedback, hero_defs)
+	var command: StringName = StringName(flow.get("ui_command", FlowCoordinatorScript.UI_NONE))
 	return {
 		"handled": bool(flow.get("handled", false)),
 		"ui_command": command,
@@ -82,13 +82,10 @@ static func _build_result(flow: Dictionary, hero_defs: Dictionary) -> Dictionary
 
 static func _screen_command(command: StringName) -> StringName:
 	match command:
-		HeroRosterFlowCoordinator.UI_OPEN_REPLACEMENT:
+		FlowCoordinatorScript.UI_OPEN_REPLACEMENT:
 			return &"config_replace"
-		HeroRosterFlowCoordinator.UI_CLOSE_REPLACEMENT,
-		HeroRosterFlowCoordinator.UI_ROSTER_CHANGED,
-		HeroRosterFlowCoordinator.UI_ALREADY_ASSIGNED,
-		HeroRosterFlowCoordinator.UI_ERROR:
+		FlowCoordinatorScript.UI_CLOSE_REPLACEMENT, FlowCoordinatorScript.UI_ROSTER_CHANGED, FlowCoordinatorScript.UI_ALREADY_ASSIGNED, FlowCoordinatorScript.UI_ERROR:
 			return &"hero_config"
-		HeroRosterFlowCoordinator.UI_CLOSE_SCREEN:
+		FlowCoordinatorScript.UI_CLOSE_SCREEN:
 			return &"close_hero_config"
 	return &"keep"
