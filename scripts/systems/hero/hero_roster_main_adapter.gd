@@ -61,7 +61,6 @@ static func handle_action(
 
 static func _build_result(flow: Dictionary, hero_defs: Dictionary) -> Dictionary:
 	var feedback: Dictionary = FeedbackScript.from_flow(flow)
-	var presentation: Dictionary = FeedbackPresenterScript.present(feedback, hero_defs)
 	var command: StringName = StringName(flow.get("ui_command", FlowCoordinatorScript.UI_NONE))
 	return {
 		"handled": bool(flow.get("handled", false)),
@@ -71,10 +70,10 @@ static func _build_result(flow: Dictionary, hero_defs: Dictionary) -> Dictionary
 		"should_sync_roster": bool(flow.get("roster_changed", false)),
 		"should_save_checkpoint": bool(flow.get("roster_changed", false)),
 		"screen_command": _screen_command(command),
-		"sfx": StringName(presentation.get("sfx", &"")),
-		"message": str(presentation.get("message", "")),
-		"message_id": StringName(presentation.get("message_id", &"")),
-		"message_params": (presentation.get("params", {}) as Dictionary).duplicate(true),
+		"sfx": StringName(feedback.get("sfx", &"")),
+		"message": FeedbackPresenterScript.message(feedback, hero_defs),
+		"message_id": StringName(feedback.get("message_id", &"")),
+		"message_params": (feedback.get("params", {}) as Dictionary).duplicate(true),
 		"input_event": (flow.get("input_event", {}) as Dictionary).duplicate(true),
 		"apply_result": (flow.get("apply_result", {}) as Dictionary).duplicate(true),
 	}
