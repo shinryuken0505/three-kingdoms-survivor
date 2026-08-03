@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1_main"]
 [ext_resource path="res://scripts/ui/status_effect_hud_layer.gd" type="Script" id="2_status_hud"]
@@ -6,6 +6,8 @@
 [ext_resource path="res://scripts/systems/progression/levelup_pool_integration_layer.gd" type="Script" id="4_levelup_pool"]
 [ext_resource path="res://scripts/ui/build_summary_layer.gd" type="Script" id="5_build_summary"]
 [ext_resource path="res://scripts/systems/hero/recruitment_roster_guard_layer.gd" type="Script" id="6_recruitment_guard"]
+[ext_resource path="res://scripts/ui/intermission_visual_layer.gd" type="Script" id="7_intermission_visual"]
+[ext_resource path="res://scripts/ui/recruitment_roster_visual_layer.gd" type="Script" id="8_recruitment_visual"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -24,3 +26,9 @@ script = ExtResource("5_build_summary")
 
 [node name="RecruitmentRosterGuardLayer" type="Node" parent="."]
 script = ExtResource("6_recruitment_guard")
+
+[node name="IntermissionVisualLayer" type="Node2D" parent="."]
+script = ExtResource("7_intermission_visual")
+
+[node name="RecruitmentRosterVisualLayer" type="Node2D" parent="."]
+script = ExtResource("8_recruitment_visual")
