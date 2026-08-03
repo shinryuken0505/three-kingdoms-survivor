@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static consistency checks for the status-effect foundation."""
+"""Static consistency checks for the status-effect foundation and HUD bridge."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ ADAPTER = ROOT / "scripts/systems/combat/player_status_adapter.gd"
 PRESENTER = ROOT / "scripts/ui/components/status_effect_presenter.gd"
 MANAGER = ROOT / "scripts/systems/combat/status_effect_manager.gd"
 RENDERER = ROOT / "scripts/ui/components/status_effect_renderer.gd"
+PAINTER = ROOT / "scripts/ui/components/status_effect_icon_painter.gd"
+HUD = ROOT / "scripts/ui/components/status_effect_hud.gd"
 
 STATUS_RE = re.compile(r'^const\s+([A-Z_]+):\s+StringName\s*=\s*&"([a-z0-9_]+)"', re.MULTILINE)
 
@@ -32,6 +34,8 @@ def main() -> int:
     defs_text = read(DEFS)
     adapter_text = read(ADAPTER)
     presenter_text = read(PRESENTER)
+    painter_text = read(PAINTER)
+    hud_text = read(HUD)
     read(MANAGER)
     read(RENDERER)
 
@@ -62,7 +66,22 @@ def main() -> int:
         if expected not in adapter_text:
             fail(f"legacy mapping missing: {field} -> {constant}")
 
-    print(f"[status-check] OK ({len(statuses)} statuses)")
+    required_hud_calls = [
+        "PlayerStatusAdapter.view_models",
+        "StatusEffectPresenter.present",
+        "StatusEffectRenderer.above_player_layout",
+        "StatusEffectRenderer.hud_layout",
+        "StatusEffectIconPainter.draw_slot",
+    ]
+    for call in required_hud_calls:
+        if call not in hud_text:
+            fail(f"HUD bridge missing call: {call}")
+
+    for status_id in ["slow", "stun", "smoke", "poison", "burn", "silence", "bleed", "vulnerable"]:
+        if f'&"{status_id}"' not in painter_text:
+            fail(f"procedural painter missing status branch/color: {status_id}")
+
+    print(f"[status-check] OK ({len(statuses)} statuses, HUD bridge ready)")
     return 0
 
 
