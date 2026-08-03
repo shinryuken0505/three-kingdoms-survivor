@@ -80,11 +80,15 @@ static func _build_result(flow: Dictionary, hero_defs: Dictionary) -> Dictionary
 
 
 static func _screen_command(command: StringName) -> StringName:
-	match command:
-		FlowCoordinatorScript.UI_OPEN_REPLACEMENT:
-			return &"config_replace"
-		FlowCoordinatorScript.UI_CLOSE_REPLACEMENT, FlowCoordinatorScript.UI_ROSTER_CHANGED, FlowCoordinatorScript.UI_ALREADY_ASSIGNED, FlowCoordinatorScript.UI_ERROR:
-			return &"hero_config"
-		FlowCoordinatorScript.UI_CLOSE_SCREEN:
-			return &"close_hero_config"
+	if command == FlowCoordinatorScript.UI_OPEN_REPLACEMENT:
+		return &"config_replace"
+	if command in [
+		FlowCoordinatorScript.UI_CLOSE_REPLACEMENT,
+		FlowCoordinatorScript.UI_ROSTER_CHANGED,
+		FlowCoordinatorScript.UI_ALREADY_ASSIGNED,
+		FlowCoordinatorScript.UI_ERROR,
+	]:
+		return &"hero_config"
+	if command == FlowCoordinatorScript.UI_CLOSE_SCREEN:
+		return &"close_hero_config"
 	return &"keep"
