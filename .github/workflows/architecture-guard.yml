@@ -9,6 +9,7 @@ on:
       - "localization/**"
       - "tools/architecture_guard.py"
       - "tools/check_localization_keys.py"
+      - "tools/check_status_effects.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "localization/**"
       - "tools/architecture_guard.py"
       - "tools/check_localization_keys.py"
+      - "tools/check_status_effects.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -34,3 +36,5 @@ jobs:
         run: python tools/architecture_guard.py
       - name: Check localization catalogs
         run: python tools/check_localization_keys.py
+      - name: Check status effect consistency
+        run: python tools/check_status_effects.py
