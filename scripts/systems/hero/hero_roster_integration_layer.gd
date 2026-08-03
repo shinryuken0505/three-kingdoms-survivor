@@ -67,7 +67,8 @@ func _normalized_action(action: StringName) -> StringName:
 
 func _handle_action(action: StringName) -> Dictionary:
 	var order: Array[String] = []
-	for value in _main.call("known_hero_order") as Array:
+	var raw_order: Array = _main.call("known_hero_order") as Array
+	for value in raw_order:
 		order.append(str(value))
 	if order.is_empty():
 		_main.call("close_hero_config")
@@ -108,13 +109,16 @@ func _legacy_state() -> Dictionary:
 
 func _apply_effects(effects: Dictionary) -> void:
 	if bool(effects.get("apply_legacy_state", false)):
-		for key in effects.get("legacy_state", {}) as Dictionary:
-			_main.set(str(key), (effects.get("legacy_state", {}) as Dictionary)[key])
+		var legacy: Dictionary = effects.get("legacy_state", {}) as Dictionary
+		for key in legacy:
+			_main.set(str(key), legacy[key])
 
 	var cooldowns: Dictionary = _main.get("hero_cooldowns") as Dictionary
-	for hero_id in effects.get("cooldown_remove", []) as Array:
+	var cooldown_remove: Array = effects.get("cooldown_remove", []) as Array
+	for hero_id in cooldown_remove:
 		cooldowns.erase(str(hero_id))
-	for hero_id in effects.get("cooldown_start", []) as Array:
+	var cooldown_start: Array = effects.get("cooldown_start", []) as Array
+	for hero_id in cooldown_start:
 		var hid: String = str(hero_id)
 		cooldowns[hid] = float(_main.call("hero_cooldown_value", hid))
 
