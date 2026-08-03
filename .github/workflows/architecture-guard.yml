@@ -20,6 +20,7 @@ on:
       - "tools/check_alpha18_hero_recruitment.py"
       - "tools/check_alpha18_intermission_recruitment.py"
       - "tools/check_alpha18_player_facing_metadata.py"
+      - "tools/check_alpha18_specialization_offers.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -38,6 +39,7 @@ on:
       - "tools/check_alpha18_hero_recruitment.py"
       - "tools/check_alpha18_intermission_recruitment.py"
       - "tools/check_alpha18_player_facing_metadata.py"
+      - "tools/check_alpha18_specialization_offers.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -76,3 +78,5 @@ jobs:
         run: python tools/check_alpha18_intermission_recruitment.py
       - name: Check Alpha.18 player-facing metadata
         run: python tools/check_alpha18_player_facing_metadata.py
+      - name: Check Alpha.18 specialization offers
+        run: python tools/check_alpha18_specialization_offers.py
