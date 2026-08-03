@@ -19,6 +19,7 @@ on:
       - "tools/check_alpha18_upgrade_paths.py"
       - "tools/check_alpha18_hero_recruitment.py"
       - "tools/check_alpha18_intermission_recruitment.py"
+      - "tools/check_alpha18_player_facing_metadata.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -36,6 +37,7 @@ on:
       - "tools/check_alpha18_upgrade_paths.py"
       - "tools/check_alpha18_hero_recruitment.py"
       - "tools/check_alpha18_intermission_recruitment.py"
+      - "tools/check_alpha18_player_facing_metadata.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -72,3 +74,5 @@ jobs:
         run: python tools/check_alpha18_hero_recruitment.py
       - name: Check Alpha.18 intermission and recruitment UI
         run: python tools/check_alpha18_intermission_recruitment.py
+      - name: Check Alpha.18 player-facing metadata
+        run: python tools/check_alpha18_player_facing_metadata.py
