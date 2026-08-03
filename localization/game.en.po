@@ -21,3 +21,27 @@ msgstr "View Next Chapter"
 
 msgid "ui.return_menu"
 msgstr "Return to Main Menu"
+
+msgid "message.hero_roster.already_assigned"
+msgstr "{hero_name} is already assigned to {state_name}."
+
+msgid "message.hero_roster.moved"
+msgstr "{hero_name} has been moved to {state_name}."
+
+msgid "message.hero_roster.replaced"
+msgstr "{hero_name} joins {state_name}; {replaced_name} moves to {replaced_state_name}."
+
+msgid "message.hero_roster.error"
+msgstr "The roster change could not be completed. Please try again."
+
+msgid "ui.hero_roster.state.active"
+msgstr "Active"
+
+msgid "ui.hero_roster.state.reserve"
+msgstr "Reserve"
+
+msgid "ui.hero_roster.state.camp"
+msgstr "Camp"
+
+msgid "ui.hero_roster.state.unknown"
+msgstr "Unassigned"
