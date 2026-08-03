@@ -5,51 +5,15 @@ extends RefCounted
 ## 不修改舊技能定義與存檔 ID，僅在產生候選時附加 metadata。
 
 const DEFINITIONS: Dictionary = {
-	"damage": {
-		"category": &"shared",
-		"build_tags": [&"shared"],
-		"priority": 90,
-	},
-	"attack_speed": {
-		"category": &"shared",
-		"build_tags": [&"shared"],
-		"priority": 88,
-	},
-	"move_speed": {
-		"category": &"passive",
-		"build_tags": [&"shared", &"mobility"],
-		"priority": 72,
-	},
-	"max_hp": {
-		"category": &"passive",
-		"build_tags": [&"shared", &"survival"],
-		"priority": 78,
-	},
-	"armor": {
-		"category": &"passive",
-		"build_tags": [&"shared", &"survival"],
-		"priority": 76,
-	},
-	"crit": {
-		"category": &"shared",
-		"build_tags": [&"shared", &"crit"],
-		"priority": 82,
-	},
-	"magnet": {
-		"category": &"passive",
-		"build_tags": [&"shared", &"economy"],
-		"priority": 58,
-	},
-	"dash": {
-		"category": &"passive",
-		"build_tags": [&"shared", &"mobility", &"survival"],
-		"priority": 70,
-	},
-	"hero_cd": {
-		"category": &"passive",
-		"build_tags": [&"shared", &"hero"],
-		"priority": 66,
-	},
+	"damage": {"category": &"shared", "build_tags": [&"shared"], "priority": 90},
+	"attack_speed": {"category": &"shared", "build_tags": [&"shared"], "priority": 88},
+	"move_speed": {"category": &"passive", "build_tags": [&"shared", &"mobility"], "priority": 72},
+	"max_hp": {"category": &"passive", "build_tags": [&"shared", &"survival"], "priority": 78},
+	"armor": {"category": &"passive", "build_tags": [&"shared", &"survival"], "priority": 76},
+	"crit": {"category": &"shared", "build_tags": [&"shared", &"crit"], "priority": 82},
+	"magnet": {"category": &"passive", "build_tags": [&"shared", &"economy"], "priority": 58},
+	"dash": {"category": &"passive", "build_tags": [&"shared", &"mobility", &"survival"], "priority": 70},
+	"hero_cd": {"category": &"passive", "build_tags": [&"shared", &"hero"], "priority": 66},
 	"projectile": {
 		"category": &"player_skill",
 		"build_tags": [&"ranged", &"projectile"],
@@ -76,11 +40,7 @@ const DEFINITIONS: Dictionary = {
 		"blocked_tags": [&"melee"],
 		"priority": 94,
 	},
-	"heal": {
-		"category": &"passive",
-		"build_tags": [&"shared", &"recovery"],
-		"priority": 68,
-	},
+	"heal": {"category": &"passive", "build_tags": [&"shared", &"recovery"], "priority": 68},
 }
 
 
@@ -90,10 +50,11 @@ static func metadata(skill_id: String) -> Dictionary:
 
 static func decorate(skill_id: String, card: Dictionary) -> Dictionary:
 	var result: Dictionary = card.duplicate(true)
+	var card_metadata: Dictionary = metadata(skill_id)
 	result["id"] = skill_id
-	for key in metadata(skill_id):
+	for key in card_metadata:
 		if not result.has(key):
-			result[key] = metadata(skill_id)[key]
+			result[key] = card_metadata[key]
 	return result
 
 
@@ -110,9 +71,7 @@ static func decorate_pool(skill_defs: Dictionary, skill_levels: Dictionary = {})
 		card["current_level"] = current_level
 		card["max_level"] = max_level
 		result.append(card)
-	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return int(a.get("priority", 0)) > int(b.get("priority", 0))
-	)
+	result.sort_custom(_higher_priority)
 	return result
 
 
@@ -130,9 +89,13 @@ static func infer_id(card: Dictionary, skill_defs: Dictionary) -> String:
 	return ""
 
 
+static func _higher_priority(a: Dictionary, b: Dictionary) -> bool:
+	var priority_a: int = int(a.get("priority", 0))
+	var priority_b: int = int(b.get("priority", 0))
+	if priority_a == priority_b:
+		return str(a.get("id", "")) < str(b.get("id", ""))
+	return priority_a > priority_b
+
+
 static func _fallback_metadata() -> Dictionary:
-	return {
-		"category": &"shared",
-		"build_tags": [&"shared"],
-		"priority": 50,
-	}
+	return {"category": &"shared", "build_tags": [&"shared"], "priority": 50}
