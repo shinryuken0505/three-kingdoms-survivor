@@ -62,13 +62,19 @@ func _draw_position_picker() -> void:
 		var rect := Rect2(230, 270 + index * 70, 820, 54)
 		var chosen: bool = index == selected
 		var available: bool = _target_available(index)
-		var fill := Color(0.34, 0.24, 0.10, 0.98) if chosen else Color(0.10, 0.115, 0.125, 0.98)
-		var border := Color(0.98, 0.76, 0.30, 1.0) if chosen else Color(0.38, 0.40, 0.42, 0.9)
+		var fill: Color = Color(0.10, 0.115, 0.125, 0.98)
+		var border: Color = Color(0.38, 0.40, 0.42, 0.9)
+		var text_color: Color = Color(0.76, 0.79, 0.81)
+		if chosen:
+			fill = Color(0.34, 0.24, 0.10, 0.98)
+			border = Color(0.98, 0.76, 0.30, 1.0)
+			text_color = Color(1.0, 0.92, 0.70)
+		elif not available:
+			text_color = Color(0.66, 0.54, 0.43)
 		draw_rect(rect, fill, true)
 		draw_rect(rect, border, false, 2.0 if chosen else 1.0)
 		var suffix: String = _target_suffix(index, available)
-		var color := Color(1.0, 0.92, 0.70) if chosen else (Color(0.76, 0.79, 0.81) if available else Color(0.66, 0.54, 0.43))
-		_draw_text("%s%s" % [TARGET_LABELS[index], suffix], rect.position + Vector2(22, 34), 17, color, chosen)
+		_draw_text("%s%s" % [TARGET_LABELS[index], suffix], rect.position + Vector2(22, 34), 17, text_color, chosen)
 	_draw_text("位置已滿時會進入替換名單，不會直接覆蓋或遺失原名將。", Vector2(230, 580), 14, Color(0.62, 0.66, 0.69))
 
 
@@ -76,9 +82,15 @@ func _draw_replacement_picker() -> void:
 	var hero_id: String = str(_main.get("config_candidate"))
 	var hero_name: String = _hero_name(hero_id)
 	var mode: String = str(_main.get("config_replace_mode"))
-	var pool: Array = _main.get("active_heroes") as Array if mode == "active" else _main.get("reserve_heroes") as Array
+	var pool: Array = []
+	if mode == "active":
+		pool = _main.get("active_heroes") as Array
+	else:
+		pool = _main.get("reserve_heroes") as Array
 	var selected: int = clampi(int(_main.get("config_replace_index")), 0, pool.size())
-	var mode_label: String = "主戰" if mode == "active" else "後備"
+	var mode_label: String = "後備"
+	if mode == "active":
+		mode_label = "主戰"
 	var panel := Rect2(170, 72, 940, 576)
 	_draw_panel(panel)
 	_draw_text("%s名額已滿・選擇替換" % mode_label, Vector2(212, 124), 28, Color(0.96, 0.81, 0.46), true)
@@ -88,15 +100,22 @@ func _draw_replacement_picker() -> void:
 	for index in range(max_rows):
 		var rect := Rect2(212, 202 + index * 64, 856, 50)
 		var chosen: bool = index == selected
-		draw_rect(rect, Color(0.34, 0.24, 0.10, 0.98) if chosen else Color(0.10, 0.115, 0.125, 0.98), true)
-		draw_rect(rect, Color(0.98, 0.76, 0.30, 1.0) if chosen else Color(0.38, 0.40, 0.42, 0.9), false, 2.0 if chosen else 1.0)
+		var fill: Color = Color(0.10, 0.115, 0.125, 0.98)
+		var border: Color = Color(0.38, 0.40, 0.42, 0.9)
+		var text_color: Color = Color(0.78, 0.80, 0.82)
+		if chosen:
+			fill = Color(0.34, 0.24, 0.10, 0.98)
+			border = Color(0.98, 0.76, 0.30, 1.0)
+			text_color = Color(1.0, 0.92, 0.70)
+		draw_rect(rect, fill, true)
+		draw_rect(rect, border, false, 2.0 if chosen else 1.0)
 		var label: String
 		if index >= pool.size():
 			label = "取消替換，返回位置選擇"
 		else:
 			var replaced_id: String = str(pool[index])
 			label = "%s　→　%s" % [_hero_name(replaced_id), _replacement_destination(mode)]
-		_draw_text(label, rect.position + Vector2(20, 32), 16, Color(1.0, 0.92, 0.70) if chosen else Color(0.78, 0.80, 0.82), chosen)
+		_draw_text(label, rect.position + Vector2(20, 32), 16, text_color, chosen)
 	_draw_text("確認後會同步更新圖鑑、技能、羈絆與主動冷卻。", Vector2(212, 610), 14, Color(0.62, 0.66, 0.69))
 
 
@@ -104,8 +123,12 @@ func _draw_roster_capacity(position: Vector2) -> void:
 	var active: Array = _main.get("active_heroes") as Array
 	var reserve: Array = _main.get("reserve_heroes") as Array
 	var camp: Array = _main.get("camp_heroes") as Array
-	var active_limit: int = int(_main.call("active_limit")) if _main.has_method("active_limit") else active.size()
-	var reserve_limit: int = int(_main.call("reserve_limit")) if _main.has_method("reserve_limit") else reserve.size()
+	var active_limit: int = active.size()
+	var reserve_limit: int = reserve.size()
+	if _main.has_method("active_limit"):
+		active_limit = int(_main.call("active_limit"))
+	if _main.has_method("reserve_limit"):
+		reserve_limit = int(_main.call("reserve_limit"))
 	_draw_text("主戰 %d／%d　　後備 %d／%d　　營地 %d" % [active.size(), active_limit, reserve.size(), reserve_limit, camp.size()], position, 16, Color(0.74, 0.77, 0.80), true)
 
 
@@ -115,20 +138,28 @@ func _target_available(index: int) -> bool:
 	var active: Array = _main.get("active_heroes") as Array
 	var reserve: Array = _main.get("reserve_heroes") as Array
 	if index == 0:
-		var limit: int = int(_main.call("active_limit")) if _main.has_method("active_limit") else active.size()
-		return active.size() < limit
-	var reserve_limit: int = int(_main.call("reserve_limit")) if _main.has_method("reserve_limit") else reserve.size()
+		var active_limit: int = active.size()
+		if _main.has_method("active_limit"):
+			active_limit = int(_main.call("active_limit"))
+		return active.size() < active_limit
+	var reserve_limit: int = reserve.size()
+	if _main.has_method("reserve_limit"):
+		reserve_limit = int(_main.call("reserve_limit"))
 	return reserve.size() < reserve_limit
 
 
 func _target_suffix(index: int, available: bool) -> String:
 	if index >= 2:
 		return ""
-	return "（有空位）" if available else "（已滿，需替換）"
+	if available:
+		return "（有空位）"
+	return "（已滿，需替換）"
 
 
 func _replacement_destination(mode: String) -> String:
-	return "後援／營地" if mode == "active" else "營地"
+	if mode == "active":
+		return "後援／營地"
+	return "營地"
 
 
 func _hero_name(hero_id: String) -> String:
@@ -146,4 +177,7 @@ func _draw_panel(rect: Rect2) -> void:
 
 
 func _draw_text(text: String, position: Vector2, size: int, color: Color, bold: bool = false) -> void:
-	draw_string(_font_bold if bold else _font, position, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+	var draw_font: Font = _font
+	if bold:
+		draw_font = _font_bold
+	draw_string(draw_font, position, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
