@@ -8,6 +8,7 @@ const BuildProfileScript = preload("res://scripts/systems/progression/player_bui
 const PoolFilterScript = preload("res://scripts/systems/progression/upgrade_pool_filter.gd")
 const CardCatalogScript = preload("res://scripts/data/upgrade_card_catalog.gd")
 const IdentityPathScript = preload("res://scripts/data/identity_upgrade_path_catalog.gd")
+const HeroSpecializationScript = preload("res://scripts/data/hero_specialization_offer_catalog.gd")
 
 
 static func build_offer(
@@ -16,7 +17,8 @@ static func build_offer(
 	skill_levels: Dictionary,
 	active_heroes: Array = [],
 	seed: int = 0,
-	count: int = 3
+	count: int = 3,
+	hero_defs: Dictionary = {}
 ) -> Array[Dictionary]:
 	if count <= 0:
 		return []
@@ -24,9 +26,18 @@ static func build_offer(
 	var profile: Dictionary = BuildProfileScript.build(player, skill_levels, unlocked_tags)
 	var raw_pool: Array[Dictionary] = CardCatalogScript.decorate_pool(skill_defs, skill_levels)
 	var path_pool: Array[Dictionary] = IdentityPathScript.decorate_pool(raw_pool, player)
-	var compatible: Array[Dictionary] = PoolFilterScript.filter_candidates(path_pool, profile)
+	var specialization_cards: Array[Dictionary] = HeroSpecializationScript.build_cards(
+		active_heroes,
+		hero_defs,
+		path_pool
+	)
+	var merged_pool: Array[Dictionary] = HeroSpecializationScript.merge_with_pool(
+		path_pool,
+		specialization_cards
+	)
+	var compatible: Array[Dictionary] = PoolFilterScript.filter_candidates(merged_pool, profile)
 	if compatible.is_empty():
-		compatible = path_pool
+		compatible = merged_pool
 	if compatible.is_empty():
 		compatible = raw_pool
 	_rotate(compatible, seed)
@@ -61,6 +72,7 @@ static func build_summary(player: Dictionary, skill_levels: Dictionary) -> Dicti
 
 static func _balanced_offer(pool: Array[Dictionary], profile: Dictionary, count: int) -> Array[Dictionary]:
 	var primary: Array[Dictionary] = []
+	var specialization: Array[Dictionary] = []
 	var secondary: Array[Dictionary] = []
 	var shared: Array[Dictionary] = []
 	var entry: Array[Dictionary] = []
@@ -69,6 +81,8 @@ static func _balanced_offer(pool: Array[Dictionary], profile: Dictionary, count:
 		var category: String = str(card.get("category", "player_skill"))
 		if not (card.get("entry_tags", []) as Array).is_empty():
 			entry.append(card)
+		elif category == "hero_specialization" or tier == "specialization":
+			specialization.append(card)
 		elif tier == "primary":
 			primary.append(card)
 		elif tier == "secondary":
@@ -79,11 +93,13 @@ static func _balanced_offer(pool: Array[Dictionary], profile: Dictionary, count:
 			secondary.append(card)
 
 	var result: Array[Dictionary] = []
-	_take_unique(result, primary, mini(2, count))
-	_take_unique(result, secondary, count)
+	_take_unique(result, primary, mini(1, count))
+	_take_unique(result, specialization, mini(2, count))
+	_take_unique(result, secondary, mini(2, count))
 	_take_unique(result, shared, count)
 	_take_unique(result, primary, count)
 	_take_unique(result, entry, count)
+	_take_unique(result, specialization, count)
 	_take_unique(result, pool, count)
 	for card in result:
 		card["compatible"] = PoolFilterScript.is_compatible(card, profile)
