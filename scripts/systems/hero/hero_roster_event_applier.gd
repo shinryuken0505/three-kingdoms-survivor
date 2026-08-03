@@ -3,9 +3,8 @@ extends RefCounted
 
 ## 將 HeroRosterInputController 回傳事件套用到正式編成資料。
 ##
-## 此橋接層專門處理主戰、後備與營地陣列，以及舊 main.gd 需要同步的
-## 畫面暫存欄位。輸入 Controller 不直接改資料；main.gd 只需依事件結果
-## 播放音效、顯示訊息與切換畫面。
+## 此橋接層專門處理主戰、後備與營地陣列。輸入 Controller 不直接改資料；
+## main.gd 只需依事件結果播放音效、顯示訊息與切換畫面。
 
 const RESULT_NONE: StringName = &"none"
 const RESULT_CURSOR: StringName = &"cursor"
@@ -45,7 +44,7 @@ static func apply(
 		HeroRosterInputController.EVENT_MOVE_HERO:
 			return _move_hero(event, active, reserve, camp, active_capacity, reserve_capacity)
 		HeroRosterInputController.EVENT_CONFIRM_REPLACEMENT:
-			return _replace_hero(event, active, reserve, camp)
+			return _replace_hero(event, active, reserve, camp, reserve_capacity)
 		_:
 			return {"result": RESULT_NONE, "changed": false}
 
@@ -63,7 +62,7 @@ static func _move_hero(
 	if hero_id.is_empty():
 		return {"result": RESULT_ERROR, "changed": false, "reason": "missing_hero"}
 
-	var moved: Dictionary = HeroRosterManager.move_to(
+	var moved: Dictionary = HeroRosterManager.move(
 		hero_id,
 		target,
 		active,
@@ -76,16 +75,17 @@ static func _move_hero(
 		return {
 			"result": RESULT_ERROR,
 			"changed": false,
-			"reason": str(moved.get("reason", "move_failed")),
+			"reason": StringName(moved.get("reason", &"move_failed")),
 			"hero_id": hero_id,
 			"target": target,
 		}
 	return {
 		"result": RESULT_ROSTER_CHANGED,
-		"changed": true,
+		"changed": bool(moved.get("changed", false)),
 		"hero_id": hero_id,
 		"from": StringName(event.get("from", &"")),
-		"to": target,
+		"to": StringName(moved.get("state", target)),
+		"reason": StringName(moved.get("reason", HeroRosterManager.MOVED)),
 	}
 
 
@@ -93,7 +93,8 @@ static func _replace_hero(
 	event: Dictionary,
 	active: Array,
 	reserve: Array,
-	camp: Array
+	camp: Array,
+	reserve_capacity: int
 ) -> Dictionary:
 	var hero_id: String = str(event.get("hero_id", ""))
 	var replaced_id: String = str(event.get("replaced_id", ""))
@@ -105,18 +106,28 @@ static func _replace_hero(
 	if str(pool[index]) != replaced_id:
 		return {"result": RESULT_ERROR, "changed": false, "reason": "stale_replacement"}
 
-	HeroRosterManager.remove_everywhere(hero_id, active, reserve, camp)
-	pool[index] = hero_id
-	if not camp.has(replaced_id):
-		camp.append(replaced_id)
-	HeroRosterManager.remove_duplicates(active, reserve, camp)
+	var replaced: Dictionary
+	if mode == HeroRosterManager.ACTIVE:
+		replaced = HeroRosterManager.replace_active(
+			hero_id, index, active, reserve, camp, reserve_capacity
+		)
+	else:
+		replaced = HeroRosterManager.replace_reserve(hero_id, index, active, reserve, camp)
+	if not bool(replaced.get("ok", false)):
+		return {
+			"result": RESULT_ERROR,
+			"changed": false,
+			"reason": StringName(replaced.get("reason", &"replace_failed")),
+		}
+	HeroRosterManager.normalize(active, reserve, camp)
 	return {
 		"result": RESULT_ROSTER_CHANGED,
-		"changed": true,
+		"changed": bool(replaced.get("changed", false)),
 		"hero_id": hero_id,
-		"replaced_id": replaced_id,
+		"replaced_id": str(replaced.get("replaced_hero_id", replaced_id)),
 		"mode": mode,
 		"index": index,
-		"to": mode,
-		"replaced_to": HeroRosterManager.CAMP,
+		"to": StringName(replaced.get("state", mode)),
+		"replaced_to": StringName(replaced.get("replaced_target", HeroRosterManager.CAMP)),
+		"reason": StringName(replaced.get("reason", HeroRosterManager.REPLACED)),
 	}
