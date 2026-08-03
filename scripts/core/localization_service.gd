@@ -7,12 +7,12 @@ extends RefCounted
 ## UI 不應直接依賴中文文字做流程判斷，應依賴穩定 ID。
 
 const DEFAULT_LOCALE: String = "zh_TW"
-const SUPPORTED_LOCALES: PackedStringArray = PackedStringArray([
+const SUPPORTED_LOCALES = [
 	"zh_TW",
 	"zh_CN",
 	"en",
 	"ja",
-])
+]
 
 
 static func normalize_locale(locale: String) -> String:
