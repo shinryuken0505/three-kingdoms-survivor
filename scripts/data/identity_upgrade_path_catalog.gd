@@ -83,16 +83,38 @@ static func decorate_pool(cards: Array, player: Dictionary) -> Array[Dictionary]
 
 static func summary(player: Dictionary, skill_levels: Dictionary) -> Dictionary:
 	var path: Dictionary = path_for_player(player)
+	var primary: Array = path.get("primary", []) as Array
 	var developed: Array[String] = []
-	for value in (path.get("primary", []) as Array):
+	var invested_levels: int = 0
+	var next_skill_id: String = ""
+	for value in primary:
 		var skill_id: String = str(value)
-		if int(skill_levels.get(skill_id, 0)) > 0:
+		var level: int = maxi(0, int(skill_levels.get(skill_id, 0)))
+		invested_levels += level
+		if level > 0:
 			developed.append(skill_id)
+		elif next_skill_id.is_empty():
+			next_skill_id = skill_id
+	if next_skill_id.is_empty() and not primary.is_empty():
+		var lowest_level: int = 999999
+		for value in primary:
+			var skill_id: String = str(value)
+			var level: int = maxi(0, int(skill_levels.get(skill_id, 0)))
+			if level < lowest_level:
+				lowest_level = level
+				next_skill_id = skill_id
+	var completion: int = 0
+	if not primary.is_empty():
+		completion = clampi(roundi(float(developed.size()) / float(primary.size()) * 100.0), 0, 100)
 	return {
 		"path_id": str(path.get("id", "general")),
 		"path_name": str(path.get("name", "通用成長")),
 		"tags": (path.get("tags", []) as Array).duplicate(),
 		"developed": developed,
+		"primary_count": primary.size(),
+		"invested_levels": invested_levels,
+		"completion": completion,
+		"next_skill_id": next_skill_id,
 	}
 
 
@@ -109,6 +131,8 @@ static func _sort_by_path_priority(cards: Array[Dictionary]) -> void:
 
 
 static func _source_label(card: Dictionary, tier: String) -> String:
+	if str(card.get("category", "")) == "hero_specialization":
+		return "主將專精"
 	if tier == "primary":
 		return "主角核心"
 	if tier == "secondary":
