@@ -13,6 +13,7 @@ on:
       - "tools/check_status_effects.py"
       - "tools/check_navigation_architecture.py"
       - "tools/check_alpha17_integration.py"
+      - "tools/check_runtime_integration.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -24,6 +25,7 @@ on:
       - "tools/check_status_effects.py"
       - "tools/check_navigation_architecture.py"
       - "tools/check_alpha17_integration.py"
+      - "tools/check_runtime_integration.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -48,3 +50,5 @@ jobs:
         run: python tools/check_navigation_architecture.py
       - name: Check Alpha.17 integration readiness
         run: python tools/check_alpha17_integration.py
+      - name: Check runtime integration wiring
+        run: python tools/check_runtime_integration.py
