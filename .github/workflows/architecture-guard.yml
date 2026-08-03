@@ -16,6 +16,7 @@ on:
       - "tools/check_runtime_integration.py"
       - "tools/check_upgrade_pool_architecture.py"
       - "tools/check_levelup_pool_integration.py"
+      - "tools/check_alpha18_upgrade_paths.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -30,6 +31,7 @@ on:
       - "tools/check_runtime_integration.py"
       - "tools/check_upgrade_pool_architecture.py"
       - "tools/check_levelup_pool_integration.py"
+      - "tools/check_alpha18_upgrade_paths.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -60,3 +62,5 @@ jobs:
         run: python tools/check_upgrade_pool_architecture.py
       - name: Check level-up pool integration
         run: python tools/check_levelup_pool_integration.py
+      - name: Check Alpha.18 identity upgrade paths
+        run: python tools/check_alpha18_upgrade_paths.py
