@@ -7,6 +7,7 @@ extends Node2D
 
 const HUD_ANCHOR := Rect2(1018.0, 142.0, 244.0, 92.0)
 const VIEW_SIZE := Vector2(1280.0, 720.0)
+const LEGACY_STATUS_MASK := Rect2(244.0, 57.0, 78.0, 24.0)
 
 var last_plan: Dictionary = {}
 var hovered_tooltip: String = ""
@@ -39,6 +40,9 @@ func _draw() -> void:
 	if hud_font == null:
 		return
 	var player_screen_position: Vector2 = _player_screen_position(main, player)
+	if not PlayerStatusAdapter.active_ids(player).is_empty():
+		# 過渡期遮住 main.gd 舊版只能顯示單一狀態的文字，避免與新圖示重複。
+		draw_rect(LEGACY_STATUS_MASK, Color(0.035, 0.04, 0.045, 0.98), true)
 	last_plan = StatusEffectHud.draw(
 		self,
 		player,
