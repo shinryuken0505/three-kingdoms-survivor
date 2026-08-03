@@ -1,12 +1,12 @@
 extends Node
 
-## 名將整備正式接線層。
+## Alpha.17 名將整備與章間輸入正式接線層。
 ##
-## 在 hero_config／config_replace 畫面期間暫停 main.gd 舊輸入入口，改由
-## HeroRosterMainAdapter 與 HeroRosterMainEffects 接管。離開目標畫面後立即恢復
-## main.gd 輸入，因此商人、營地、章間返回與其他既有畫面仍沿用原流程。
+## 在 hero_config／config_replace／intermission 畫面期間暫停 main.gd 舊輸入入口，
+## 改由已拆分的協調器接管。離開目標畫面後立即恢復 main.gd 輸入，其他既有畫面
+## 與戰鬥操作不受影響。
 
-const TARGET_SCREENS: Array[String] = ["hero_config", "config_replace"]
+const TARGET_SCREENS: Array[String] = ["hero_config", "config_replace", "intermission"]
 
 var _main: Node = null
 var _owns_input: bool = false
@@ -45,15 +45,17 @@ func _input(event: InputEvent) -> void:
 		key = key_event.physical_keycode
 	if key == KEY_NONE and key_event.unicode == 32:
 		key = KEY_SPACE
-	var action: StringName = _normalized_action(InputRouter.action_for_key(key))
-	if action == InputRouter.ACTION_NONE:
-		return
-	var result: Dictionary = _handle_action(action)
-	if bool(result.get("handled", false)):
+	var action: StringName = InputRouter.action_for_key(key)
+	var handled: bool = false
+	if str(_main.get("screen")) == "intermission":
+		handled = _handle_intermission(action)
+	else:
+		handled = bool(_handle_roster_action(_normalized_roster_action(action)).get("handled", false))
+	if handled:
 		get_viewport().set_input_as_handled()
 
 
-func _normalized_action(action: StringName) -> StringName:
+func _normalized_roster_action(action: StringName) -> StringName:
 	if action == InputRouter.ACTION_LEFT:
 		return InputRouter.ACTION_UP
 	if action == InputRouter.ACTION_RIGHT:
@@ -65,7 +67,55 @@ func _normalized_action(action: StringName) -> StringName:
 	return action
 
 
-func _handle_action(action: StringName) -> Dictionary:
+func _handle_intermission(action: StringName) -> bool:
+	var options: Array = _main.call("intermission_options") as Array
+	var result: Dictionary = IntermissionInputController.handle(
+		action,
+		int(_main.get("option_index")),
+		options.size()
+	)
+	if not bool(result.get("handled", false)):
+		return false
+	_main.set("option_index", int(result.get("selected_index", 0)))
+	match StringName(result.get("command", IntermissionInputController.COMMAND_NONE)):
+		IntermissionInputController.COMMAND_CURSOR:
+			_main.call("play_sfx", "ui_move")
+		IntermissionInputController.COMMAND_CANCEL:
+			_main.call("return_to_menu")
+		IntermissionInputController.COMMAND_CONFIRM:
+			_main.call("play_sfx", "ui_confirm")
+			_activate_intermission_option(options)
+	_main.call("queue_redraw")
+	return true
+
+
+func _activate_intermission_option(options: Array) -> void:
+	if options.is_empty():
+		return
+	var index: int = clampi(int(_main.get("option_index")), 0, options.size() - 1)
+	match str(options[index]):
+		"名將整備":
+			_main.call("open_hero_config", "intermission")
+		"裝備整備":
+			_main.set("previous_screen", "intermission")
+			_main.set("screen", "tab")
+			_main.set("tab_page", 1)
+			_main.set("tab_index", 0)
+			_main.set("tab_scroll", 0)
+		"儲存章節進度":
+			if bool(_main.call("save_run_checkpoint")):
+				_main.call("show_message", "章節進度已手動保存。", 2.4)
+			else:
+				_main.call("show_message", "目前無法建立章節存檔。", 2.4)
+		"進入下一章":
+			_main.call("begin_next_chapter")
+		_:
+			_main.call("return_to_menu")
+
+
+func _handle_roster_action(action: StringName) -> Dictionary:
+	if action == InputRouter.ACTION_NONE:
+		return {"handled": false}
 	var order: Array[String] = []
 	var raw_order: Array = _main.call("known_hero_order") as Array
 	for value in raw_order:
@@ -90,7 +140,7 @@ func _handle_action(action: StringName) -> Dictionary:
 		_main.get("heroes") as Dictionary
 	)
 	var effects: Dictionary = HeroRosterMainEffects.build(adapter_result, origin)
-	_apply_effects(effects)
+	_apply_roster_effects(effects)
 	return adapter_result
 
 
@@ -107,7 +157,7 @@ func _legacy_state() -> Dictionary:
 	}
 
 
-func _apply_effects(effects: Dictionary) -> void:
+func _apply_roster_effects(effects: Dictionary) -> void:
 	if bool(effects.get("apply_legacy_state", false)):
 		var legacy: Dictionary = effects.get("legacy_state", {}) as Dictionary
 		for key in legacy:
