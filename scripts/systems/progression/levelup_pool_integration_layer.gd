@@ -3,9 +3,11 @@ extends Node
 ## 升級卡池正式接線層。
 ##
 ## 進入 levelup 畫面後，以既有 skill_defs 與 skill_levels 重新建立三張相容選項。
-## 不接管輸入、不修改 choose_levelup()，因此原本 Space／Enter／滑鼠流程保持不變。
+## level_choices 維持舊流程所需的技能 ID；完整卡片資料另存於 offer_metadata。
 
 const OfferServiceScript = preload("res://scripts/systems/progression/levelup_offer_service.gd")
+
+var offer_metadata: Array[Dictionary] = []
 
 var _main: Node = null
 var _last_screen: String = ""
@@ -42,6 +44,10 @@ func _process(_delta: float) -> void:
 	_processed_pending = pending
 
 
+func get_offer_metadata() -> Array[Dictionary]:
+	return offer_metadata.duplicate(true)
+
+
 func _apply_offer(player: Dictionary, level: int, pending: int) -> void:
 	var skill_defs: Dictionary = _main.get("skill_defs") as Dictionary
 	var skill_levels: Dictionary = _main.get("skill_levels") as Dictionary
@@ -62,7 +68,17 @@ func _apply_offer(player: Dictionary, level: int, pending: int) -> void:
 	)
 	if offer.is_empty():
 		return
-	_main.set("level_choices", offer)
-	var option_index: int = clampi(int(_main.get("option_index")), 0, offer.size() - 1)
+
+	offer_metadata = offer.duplicate(true)
+	var choice_ids: Array[String] = []
+	for card in offer_metadata:
+		var skill_id: String = str(card.get("id", ""))
+		if not skill_id.is_empty():
+			choice_ids.append(skill_id)
+	if choice_ids.is_empty():
+		return
+
+	_main.set("level_choices", choice_ids)
+	var option_index: int = clampi(int(_main.get("option_index")), 0, choice_ids.size() - 1)
 	_main.set("option_index", option_index)
 	_main.call("queue_redraw")
