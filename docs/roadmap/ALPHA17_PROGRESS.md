@@ -12,11 +12,11 @@
 
 | 項目 | 狀態 | 內容 | 主要 Commit |
 |---|---|---|---|
-| A17-ARCH-004 名將整備拆分 | 進行中／多批本機啟動通過 | Manager、Controller、ViewModel、Session、畫面排版模型與輸入協調層已建立；`main.gd` 完整 renderer 尚未移除 | `015b2f6`、`4fdf597`、`de6bef8`、`55462f6`、`363f560` |
+| A17-ARCH-004 名將整備拆分 | 進行中／多批本機啟動通過 | Manager、Controller、ViewModel、Session、畫面排版模型、輸入協調層與事件套用橋接層已建立；`main.gd` 完整 renderer 尚未移除 | `015b2f6`、`4fdf597`、`de6bef8`、`55462f6`、`363f560`、`00aab4b` |
 | A17-ARCH-005 共用 UI 元件 | 基礎完成／本機啟動通過 | Panel、Modal、文字排版、選項按鈕、狀態徽章已建立；名將位置、替換與章間 layout 已開始共用 | `7c1665c`、`20ea766`、`e03f561`、`e586c82`、`6e93964` |
 | A17-UI-001 章間排版 | 進行中 | 安全區、左右欄、左側三區塊與五按鈕列 layout 已完成；舊 `main.gd` renderer 尚待正式接線 | `d03e4e7`、`6fea443`、`20ea766` |
 | A17-HERO-002 招賢館統一編成 | 基礎完成／尚未接線 | 招募位置服務與名將編成共用規則已建立；招賢館現有流程尚待接入 | `becf615` |
-| A17-ARCH-006 畫面與輸入路由 | 基礎完成／多批本機啟動通過 | ScreenRouter、InputRouter 與名將整備輸入協調層已建立；尚未接管 `main.gd` | `1cd4f9b`、`68321ec`、`34c3c97`、`363f560` |
+| A17-ARCH-006 畫面與輸入路由 | 基礎完成／多批本機啟動通過 | ScreenRouter、InputRouter、名將整備輸入協調層與事件套用橋接層已建立；尚未接管 `main.gd` | `1cd4f9b`、`68321ec`、`34c3c97`、`363f560`、`00aab4b` |
 | A17-ARCH-009 狀態效果系統 | 基礎完成／尚未接線 | 定義、Manager、舊欄位 Adapter、HUD layout 與程式化 icon 已完成 | `5c7dad9`、`a285730` |
 | A17-HUD-003 負面狀態圖示 | 進行中 | HUD 元件完成，尚未實際接入戰場 `main.gd` | `a285730` |
 | A17-ARCH-007 多國語言 | 工具完成／內容待遷移 | 四語 key 一致性檢查已加入 Architecture Guard | `6e0a5e5` |
@@ -58,6 +58,21 @@
    - 驗證移至營地的事件資料。
    - 驗證主戰滿額後開啟替換、游標切換與確認替換。
    - 驗證 Esc 會依替換彈窗、位置彈窗、主畫面的順序逐層關閉。
+3. 使用者已確認本批可正常 F5 啟動。
+
+## 2026-08-03 名將編成事件套用批次
+
+1. 新增 `hero_roster_event_applier.gd`：
+   - 將 Input Controller 的事件轉成正式編成修改。
+   - 統一呼叫 `HeroRosterManager.move()`、`replace_active()`、`replace_reserve()`。
+   - 支援主戰替換後優先送往後備，後備滿額才回營地。
+   - 驗證替換對象仍位於原索引，避免畫面資料過期時誤換其他名將。
+   - 套用後執行編成正規化，避免同一名將同時存在多個位置。
+2. 新增 `hero_roster_event_applier_test.gd`：
+   - 驗證後備移至營地。
+   - 驗證主戰替換與空後備欄位。
+   - 驗證後備替換後舊名將回營地。
+   - 驗證過期替換資料不會修改編成。
 
 ### 本批驗證
 
@@ -66,4 +81,4 @@
 - 玩家可見文字：未新增。
 - `main.gd`：尚未接線，現有操作行為不應改變。
 - Godot 本機 F5：待使用者驗證。
-- 功能驗收：待下一階段將現有 `handle_hero_config_key()` 委派至此協調層後進行。
+- 功能驗收：下一階段只需在 `handle_hero_config_key()` 建立 Session 同步、呼叫 Input Controller，再將事件交給 Event Applier。
