@@ -21,3 +21,27 @@ msgstr "次の章を見る"
 
 msgid "ui.return_menu"
 msgstr "メインメニューへ"
+
+msgid "message.hero_roster.already_assigned"
+msgstr "{hero_name}はすでに{state_name}に配置されています。"
+
+msgid "message.hero_roster.moved"
+msgstr "{hero_name}を{state_name}へ移動しました。"
+
+msgid "message.hero_roster.replaced"
+msgstr "{hero_name}を{state_name}に編成し、{replaced_name}は{replaced_state_name}へ移動しました。"
+
+msgid "message.hero_roster.error"
+msgstr "武将編成を完了できませんでした。もう一度お試しください。"
+
+msgid "ui.hero_roster.state.active"
+msgstr "出陣"
+
+msgid "ui.hero_roster.state.reserve"
+msgstr "控え"
+
+msgid "ui.hero_roster.state.camp"
+msgstr "陣営"
+
+msgid "ui.hero_roster.state.unknown"
+msgstr "未配置"
