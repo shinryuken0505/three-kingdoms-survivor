@@ -27,15 +27,23 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if _main == null or str(_main.get("screen")) != "levelup":
 		return
-	var choices_value: Variant = _main.get("level_choices")
-	if not (choices_value is Array):
-		return
-	var choices: Array = choices_value as Array
+	var choices: Array[Dictionary] = _offer_metadata()
 	for index in range(choices.size()):
-		if not (choices[index] is Dictionary):
-			continue
-		var card: Dictionary = choices[index] as Dictionary
-		_draw_card_metadata(index, card)
+		_draw_card_metadata(index, choices[index])
+
+
+func _offer_metadata() -> Array[Dictionary]:
+	var integration: Node = _main.get_node_or_null("LevelupPoolIntegrationLayer")
+	if integration == null or not integration.has_method("get_offer_metadata"):
+		return []
+	var value: Variant = integration.call("get_offer_metadata")
+	if not (value is Array):
+		return []
+	var result: Array[Dictionary] = []
+	for item in value as Array:
+		if item is Dictionary:
+			result.append(item as Dictionary)
+	return result
 
 
 func _draw_card_metadata(index: int, card: Dictionary) -> void:
