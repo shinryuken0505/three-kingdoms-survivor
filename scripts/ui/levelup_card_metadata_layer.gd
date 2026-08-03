@@ -48,6 +48,13 @@ func _draw_card_metadata(index: int, card: Dictionary) -> void:
 	draw_rect(source_rect, Color(0.85, 0.68, 0.30, 0.95), false, 1.0)
 	_draw_centered_text(source_label, source_rect, 12, Color(0.96, 0.86, 0.61), true)
 
+	var source_hero_name: String = str(card.get("source_hero_name", ""))
+	if not source_hero_name.is_empty():
+		var hero_rect := Rect2(card_rect.position + Vector2(122, 12), Vector2(146, 24))
+		draw_rect(hero_rect, Color(0.14, 0.10, 0.06, 0.94), true)
+		draw_rect(hero_rect, Color(0.92, 0.65, 0.27, 0.95), false, 1.0)
+		_draw_centered_text("來源：%s" % source_hero_name, hero_rect, 11, Color(1.0, 0.88, 0.62), true)
+
 	var tags: Array[String] = _display_tags(card)
 	var x: float = card_rect.position.x + 14.0
 	var y: float = card_rect.end.y - 33.0
@@ -62,7 +69,7 @@ func _draw_card_metadata(index: int, card: Dictionary) -> void:
 		x += width + 7.0
 
 	var entry_tags: Array = card.get("entry_tags", []) as Array
-	if not entry_tags.is_empty():
+	if not entry_tags.is_empty() and source_hero_name.is_empty():
 		var entry_rect := Rect2(card_rect.position + Vector2(126, 12), Vector2(142, 24))
 		draw_rect(entry_rect, Color(0.22, 0.10, 0.28, 0.94), true)
 		draw_rect(entry_rect, Color(0.82, 0.46, 0.95, 0.95), false, 1.0)
