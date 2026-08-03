@@ -11,7 +11,7 @@ const SHARED: StringName = &"shared"
 const HYBRID: StringName = &"hybrid"
 
 const MELEE_WEAPONS: Array[StringName] = [&"sword", &"blade", &"spear", &"halberd", &"staff", &"fist"]
-const RANGED_WEAPONS: Array[StringName] = [&"bow", &"crossbow", &"throwing", &"fan", &"orb"]
+const RANGED_WEAPONS: Array[StringName] = [&"bow", &"crossbow", &"throwing", &"fan", &"orb", &"poison", &"rings", &"needle"]
 
 
 static func build(player: Dictionary, skill_levels: Dictionary = {}, unlocked_tags: Array = []) -> Dictionary:
@@ -20,6 +20,10 @@ static func build(player: Dictionary, skill_levels: Dictionary = {}, unlocked_ta
 	var tags: Dictionary = {}
 	_add_tag(tags, SHARED)
 	_add_tag(tags, combat_type)
+	if weapon == &"poison":
+		_add_tag(tags, &"poison")
+	if weapon == &"rings":
+		_add_tag(tags, &"projectile")
 	for value in unlocked_tags:
 		_add_tag(tags, StringName(str(value)))
 	for skill_id in skill_levels:
@@ -56,8 +60,9 @@ static func _add_skill_tags(tags: Dictionary, skill_id: StringName) -> void:
 		_add_tag(tags, &"summon")
 	if text.contains("control") or text.contains("slow") or text.contains("stun"):
 		_add_tag(tags, &"control")
-	if text.contains("projectile") or text.contains("arrow") or text.contains("pierce"):
+	if text.contains("projectile") or text.contains("arrow") or text.contains("pierce") or text.contains("multishot"):
 		_add_tag(tags, RANGED)
+		_add_tag(tags, &"projectile")
 	if text.contains("slash") or text.contains("melee") or text.contains("contact"):
 		_add_tag(tags, MELEE)
 
