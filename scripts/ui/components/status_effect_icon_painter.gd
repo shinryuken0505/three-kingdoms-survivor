@@ -13,7 +13,8 @@ static func draw_slot(canvas: CanvasItem, slot: Dictionary, font: Font) -> void:
 		return
 	var status_id: StringName = StringName(slot.get("id", &""))
 	var base_color: Color = _status_color(status_id)
-	canvas.draw_rect(rect, Color(0.035, 0.04, 0.045, 0.96), true)
+	var pulse_alpha: float = 0.72 if bool(slot.get("pulse", false)) else 0.96
+	canvas.draw_rect(rect, Color(0.035, 0.04, 0.045, pulse_alpha), true)
 	canvas.draw_rect(rect, base_color, false, 2.0)
 	_draw_symbol(canvas, rect, status_id, base_color)
 
@@ -69,6 +70,20 @@ static func _draw_symbol(canvas: CanvasItem, rect: Rect2, status_id: StringName,
 				center + Vector2(-4.0, -4.0),
 			])
 			canvas.draw_colored_polygon(flame, color)
+		&"silence":
+			canvas.draw_circle(center, 10.0, color, false, 3.0)
+			canvas.draw_line(center + Vector2(-8.0, 8.0), center + Vector2(8.0, -8.0), color, 3.0)
+		&"bleed":
+			var drop := PackedVector2Array([
+				center + Vector2(0.0, -12.0), center + Vector2(8.0, 1.0),
+				center + Vector2(5.0, 10.0), center + Vector2(-5.0, 10.0),
+				center + Vector2(-8.0, 1.0),
+			])
+			canvas.draw_colored_polygon(drop, color)
+		&"vulnerable":
+			canvas.draw_line(center + Vector2(-10.0, -10.0), center + Vector2(10.0, 10.0), color, 3.0)
+			canvas.draw_line(center + Vector2(10.0, -10.0), center + Vector2(-10.0, 10.0), color, 3.0)
+			canvas.draw_circle(center, 4.0, color, false, 2.0)
 		_:
 			canvas.draw_circle(center, 8.0, color)
 
@@ -85,6 +100,8 @@ static func _status_color(status_id: StringName) -> Color:
 			return Color8(117, 202, 91)
 		&"burn":
 			return Color8(237, 111, 57)
+		&"silence":
+			return Color8(166, 116, 214)
 		&"bleed":
 			return Color8(213, 65, 73)
 		&"vulnerable":
