@@ -7,6 +7,12 @@ extends RefCounted
 ## HeroRosterEventApplier 的規則。此層只修改傳入的編成陣列並回傳初始化計畫，
 ## 不處理遭遇冷卻、畫面切換、音效或玩家存檔。
 
+const PlacementServiceScript = preload("res://scripts/systems/hero/recruitment_placement_service.gd")
+const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
+const HeroRosterEventApplierScript = preload("res://scripts/systems/hero/hero_roster_event_applier.gd")
+const HeroRosterInputControllerScript = preload("res://scripts/systems/hero/hero_roster_input_controller.gd")
+const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
+
 const RESULT_OPEN_PICKER: StringName = &"open_picker"
 const RESULT_CANCELLED: StringName = &"cancelled"
 const RESULT_ALREADY_ASSIGNED: StringName = &"already_assigned"
@@ -19,13 +25,13 @@ const RESULT_ERROR: StringName = &"error"
 static func begin(hero_id: String, active: Array, reserve: Array, camp: Array) -> Dictionary:
 	if hero_id.is_empty():
 		return {"result": RESULT_ERROR, "reason": &"missing_hero"}
-	var request: Dictionary = RecruitmentPlacementService.begin(hero_id, active, reserve, camp)
+	var request: Dictionary = PlacementServiceScript.begin(hero_id, active, reserve, camp)
 	return {
 		"result": RESULT_OPEN_PICKER,
 		"hero_id": hero_id,
-		"current_state": StringName(request.get("current_state", HeroRosterManager.UNKNOWN)),
+		"current_state": StringName(request.get("current_state", HeroRosterManagerScript.UNKNOWN)),
 		"target_index": int((request.get("picker", {}) as Dictionary).get("target_index", 0)),
-		"initialization": RecruitmentPlacementService.initialization_payload(hero_id),
+		"initialization": PlacementServiceScript.initialization_payload(hero_id),
 	}
 
 
@@ -40,44 +46,43 @@ static func choose_target(
 ) -> Dictionary:
 	if target_index == 3:
 		return cancel(hero_id)
-	var decision: Dictionary = RecruitmentPlacementService.resolve_target(
+	var decision: Dictionary = PlacementServiceScript.resolve_target(
 		hero_id, target_index, active, reserve, camp, active_capacity, reserve_capacity
 	)
-	var action: StringName = StringName(decision.get("action", HeroRosterController.ACTION_NONE))
-	match action:
-		HeroRosterController.ACTION_ALREADY_ASSIGNED:
-			return {
-				"result": RESULT_ALREADY_ASSIGNED,
-				"hero_id": hero_id,
-				"state": StringName(decision.get("state", HeroRosterManager.UNKNOWN)),
-				"initialization": RecruitmentPlacementService.initialization_payload(hero_id),
-			}
-		HeroRosterController.ACTION_OPEN_REPLACEMENT:
-			return {
-				"result": RESULT_OPEN_REPLACEMENT,
-				"hero_id": hero_id,
-				"mode": StringName(decision.get("mode", HeroRosterManager.ACTIVE)),
-				"replacement_index": 0,
-				"initialization": RecruitmentPlacementService.initialization_payload(hero_id),
-			}
-		HeroRosterController.ACTION_MOVE_HERO:
-			var event: Dictionary = {
-				"event": HeroRosterInputController.EVENT_MOVE_HERO,
-				"hero_id": hero_id,
-				"from": StringName(decision.get("from", HeroRosterManager.UNKNOWN)),
-				"to": StringName(decision.get("to", HeroRosterManager.CAMP)),
-			}
-			var applied: Dictionary = HeroRosterEventApplier.apply(
-				event, active, reserve, camp, active_capacity, reserve_capacity
-			)
-			if StringName(applied.get("result", &"")) != HeroRosterEventApplier.RESULT_ROSTER_CHANGED:
-				return {"result": RESULT_ERROR, "reason": applied.get("reason", &"place_failed")}
-			return {
-				"result": RESULT_PLACED,
-				"hero_id": hero_id,
-				"to": StringName(applied.get("to", HeroRosterManager.UNKNOWN)),
-				"initialization": RecruitmentPlacementService.initialization_payload(hero_id),
-			}
+	var action: StringName = StringName(decision.get("action", HeroRosterControllerScript.ACTION_NONE))
+	if action == HeroRosterControllerScript.ACTION_ALREADY_ASSIGNED:
+		return {
+			"result": RESULT_ALREADY_ASSIGNED,
+			"hero_id": hero_id,
+			"state": StringName(decision.get("state", HeroRosterManagerScript.UNKNOWN)),
+			"initialization": PlacementServiceScript.initialization_payload(hero_id),
+		}
+	if action == HeroRosterControllerScript.ACTION_OPEN_REPLACEMENT:
+		return {
+			"result": RESULT_OPEN_REPLACEMENT,
+			"hero_id": hero_id,
+			"mode": StringName(decision.get("mode", HeroRosterManagerScript.ACTIVE)),
+			"replacement_index": 0,
+			"initialization": PlacementServiceScript.initialization_payload(hero_id),
+		}
+	if action == HeroRosterControllerScript.ACTION_MOVE_HERO:
+		var event: Dictionary = {
+			"event": HeroRosterInputControllerScript.EVENT_MOVE_HERO,
+			"hero_id": hero_id,
+			"from": StringName(decision.get("from", HeroRosterManagerScript.UNKNOWN)),
+			"to": StringName(decision.get("to", HeroRosterManagerScript.CAMP)),
+		}
+		var applied: Dictionary = HeroRosterEventApplierScript.apply(
+			event, active, reserve, camp, active_capacity, reserve_capacity
+		)
+		if StringName(applied.get("result", &"")) != HeroRosterEventApplierScript.RESULT_ROSTER_CHANGED:
+			return {"result": RESULT_ERROR, "reason": applied.get("reason", &"place_failed")}
+		return {
+			"result": RESULT_PLACED,
+			"hero_id": hero_id,
+			"to": StringName(applied.get("to", HeroRosterManagerScript.UNKNOWN)),
+			"initialization": PlacementServiceScript.initialization_payload(hero_id),
+		}
 	return {"result": RESULT_ERROR, "reason": &"invalid_target"}
 
 
@@ -91,34 +96,34 @@ static func confirm_replacement(
 	active_capacity: int,
 	reserve_capacity: int
 ) -> Dictionary:
-	var pool: Array = active if mode == HeroRosterManager.ACTIVE else reserve
+	var pool: Array = active if mode == HeroRosterManagerScript.ACTIVE else reserve
 	if replacement_index < 0 or replacement_index >= pool.size():
 		return {"result": RESULT_ERROR, "reason": &"invalid_replacement"}
 	var replaced_id: String = str(pool[replacement_index])
 	var event: Dictionary = {
-		"event": HeroRosterInputController.EVENT_CONFIRM_REPLACEMENT,
+		"event": HeroRosterInputControllerScript.EVENT_CONFIRM_REPLACEMENT,
 		"hero_id": hero_id,
 		"replaced_id": replaced_id,
 		"mode": mode,
 		"index": replacement_index,
 	}
-	var applied: Dictionary = HeroRosterEventApplier.apply(
+	var applied: Dictionary = HeroRosterEventApplierScript.apply(
 		event, active, reserve, camp, active_capacity, reserve_capacity
 	)
-	if StringName(applied.get("result", &"")) != HeroRosterEventApplier.RESULT_ROSTER_CHANGED:
+	if StringName(applied.get("result", &"")) != HeroRosterEventApplierScript.RESULT_ROSTER_CHANGED:
 		return {"result": RESULT_ERROR, "reason": applied.get("reason", &"replace_failed")}
 	return {
 		"result": RESULT_REPLACED,
 		"hero_id": hero_id,
 		"replaced_id": replaced_id,
 		"to": mode,
-		"replaced_to": StringName(applied.get("replaced_to", HeroRosterManager.CAMP)),
-		"initialization": RecruitmentPlacementService.initialization_payload(hero_id),
+		"replaced_to": StringName(applied.get("replaced_to", HeroRosterManagerScript.CAMP)),
+		"initialization": PlacementServiceScript.initialization_payload(hero_id),
 	}
 
 
 static func cancel(hero_id: String) -> Dictionary:
-	var cancelled: Dictionary = RecruitmentPlacementService.cancel(hero_id)
+	var cancelled: Dictionary = PlacementServiceScript.cancel(hero_id)
 	return {
 		"result": RESULT_CANCELLED,
 		"hero_id": str(cancelled.get("hero_id", hero_id)),
