@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static consistency checks for the status-effect foundation and HUD bridge."""
+"""Static consistency checks for the status-effect foundation and mounted HUD."""
 
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ MANAGER = ROOT / "scripts/systems/combat/status_effect_manager.gd"
 RENDERER = ROOT / "scripts/ui/components/status_effect_renderer.gd"
 PAINTER = ROOT / "scripts/ui/components/status_effect_icon_painter.gd"
 HUD = ROOT / "scripts/ui/components/status_effect_hud.gd"
+HUD_LAYER = ROOT / "scripts/ui/status_effect_hud_layer.gd"
+MAIN_SCENE = ROOT / "main.tscn"
 
 STATUS_RE = re.compile(r'^const\s+([A-Z_]+):\s+StringName\s*=\s*&"([a-z0-9_]+)"', re.MULTILINE)
 
@@ -36,6 +38,8 @@ def main() -> int:
     presenter_text = read(PRESENTER)
     painter_text = read(PAINTER)
     hud_text = read(HUD)
+    hud_layer_text = read(HUD_LAYER)
+    main_scene_text = read(MAIN_SCENE)
     read(MANAGER)
     read(RENDERER)
 
@@ -81,7 +85,19 @@ def main() -> int:
         if f'&"{status_id}"' not in painter_text:
             fail(f"procedural painter missing status branch/color: {status_id}")
 
-    print(f"[status-check] OK ({len(statuses)} statuses, HUD bridge ready)")
+    required_layer_calls = [
+        "StatusEffectHud.draw",
+        "StatusEffectHud.hovered_item",
+        "world_to_screen",
+        "LEGACY_STATUS_MASK",
+    ]
+    for call in required_layer_calls:
+        if call not in hud_layer_text:
+            fail(f"mounted HUD layer missing integration token: {call}")
+    if "status_effect_hud_layer.gd" not in main_scene_text or "StatusEffectHudLayer" not in main_scene_text:
+        fail("main.tscn does not mount the status HUD layer")
+
+    print(f"[status-check] OK ({len(statuses)} statuses, HUD mounted)")
     return 0
 
 
