@@ -5,6 +5,8 @@ extends Node
 ## 進入 levelup 畫面後，以既有 skill_defs 與 skill_levels 重新建立三張相容選項。
 ## 不接管輸入、不修改 choose_levelup()，因此原本 Space／Enter／滑鼠流程保持不變。
 
+const OfferServiceScript = preload("res://scripts/systems/progression/levelup_offer_service.gd")
+
 var _main: Node = null
 var _last_screen: String = ""
 var _processed_level: int = -1
@@ -44,14 +46,19 @@ func _apply_offer(player: Dictionary, level: int, pending: int) -> void:
 	var skill_defs: Dictionary = _main.get("skill_defs") as Dictionary
 	var skill_levels: Dictionary = _main.get("skill_levels") as Dictionary
 	var active_heroes: Array = _main.get("active_heroes") as Array
+	var hero_defs: Dictionary = {}
+	var heroes_value: Variant = _main.get("heroes")
+	if heroes_value is Dictionary:
+		hero_defs = heroes_value as Dictionary
 	var seed: int = level * 31 + pending * 17 + int(_main.get("elapsed"))
-	var offer: Array[Dictionary] = LevelupOfferService.build_offer(
+	var offer: Array[Dictionary] = OfferServiceScript.build_offer(
 		player,
 		skill_defs,
 		skill_levels,
 		active_heroes,
 		seed,
-		3
+		3,
+		hero_defs
 	)
 	if offer.is_empty():
 		return
