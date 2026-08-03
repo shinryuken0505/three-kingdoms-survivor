@@ -6,17 +6,20 @@ extends RefCounted
 ## 本服務不直接操作 UI、音效或存檔。招募畫面選定名將後，先呼叫
 ## `begin()` 取得位置選擇狀態，再將玩家選擇交給 HeroRosterController。
 
+const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
+const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
+
 const ACTION_OPEN_POSITION_PICKER: StringName = &"open_position_picker"
 const ACTION_CANCEL_RECRUITMENT: StringName = &"cancel_recruitment"
 
 
 static func begin(hero_id: String, active: Array, reserve: Array, camp: Array) -> Dictionary:
-	var current_state: String = HeroRosterManager.state_of(hero_id, active, reserve, camp)
+	var current_state: String = HeroRosterManagerScript.state_of(hero_id, active, reserve, camp)
 	return {
 		"action": ACTION_OPEN_POSITION_PICKER,
 		"hero_id": hero_id,
 		"current_state": current_state,
-		"picker": HeroRosterController.open_picker_for(hero_id, current_state),
+		"picker": HeroRosterControllerScript.open_picker_for(hero_id, current_state),
 		"source": "recruitment",
 	}
 
@@ -30,7 +33,7 @@ static func resolve_target(
 	active_capacity: int,
 	reserve_capacity: int
 ) -> Dictionary:
-	var decision: Dictionary = HeroRosterController.resolve_target(
+	var decision: Dictionary = HeroRosterControllerScript.resolve_target(
 		hero_id,
 		target_index,
 		active,
