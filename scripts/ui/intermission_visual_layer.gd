@@ -3,7 +3,8 @@ extends Node2D
 ## Alpha.18 章間整備新版視覺層。
 ## 僅負責繪製，不接管輸入；既有 main.gd 的 option_index 與操作流程保持不變。
 
-const VIEW_SIZE := Vector2(1280.0, 720.0)
+const VIEW_WIDTH: float = 1280.0
+const VIEW_HEIGHT: float = 720.0
 
 var _main: Node = null
 var _font: Font = null
@@ -36,7 +37,7 @@ func _draw() -> void:
 
 
 func _draw_backdrop() -> void:
-	draw_rect(Rect2(Vector2.ZERO, VIEW_SIZE), Color(0.035, 0.045, 0.055, 0.97), true)
+	draw_rect(Rect2(0, 0, VIEW_WIDTH, VIEW_HEIGHT), Color(0.035, 0.045, 0.055, 0.97), true)
 	draw_rect(Rect2(34, 26, 1212, 650), Color(0.075, 0.085, 0.095, 0.98), true)
 	draw_rect(Rect2(34, 26, 1212, 650), Color(0.73, 0.59, 0.31, 0.85), false, 2.0)
 
@@ -45,8 +46,11 @@ func _draw_header() -> void:
 	var chapter: Dictionary = _safe_call_dictionary("current_chapter")
 	var chapter_title: String = str(chapter.get("title", "亂世旅程"))
 	var place: String = str(chapter.get("place", ""))
+	var place_suffix: String = ""
+	if not place.is_empty():
+		place_suffix = "・%s" % place
 	_draw_text("章間整備", Vector2(64, 66), 32, Color(0.96, 0.84, 0.52), true)
-	_draw_text("上一章：%s%s" % [chapter_title, "・%s" % place if not place.is_empty() else ""], Vector2(64, 98), 18, Color(0.80, 0.82, 0.84))
+	_draw_text("上一章：%s%s" % [chapter_title, place_suffix], Vector2(64, 98), 18, Color(0.80, 0.82, 0.84))
 	_draw_text("整理戰果、調整名將與裝備，再決定下一步。", Vector2(64, 124), 16, Color(0.64, 0.68, 0.72))
 
 
@@ -65,8 +69,9 @@ func _draw_panel(rect: Rect2, title: String, lines: Array[String]) -> void:
 	draw_rect(Rect2(rect.position, Vector2(rect.size.x, 44)), Color(0.16, 0.15, 0.13, 0.96), true)
 	_draw_text(title, rect.position + Vector2(18, 29), 19, Color(0.94, 0.80, 0.48), true)
 	var y: float = rect.position.y + 72.0
-	for line in lines.slice(0, 10):
-		_draw_text("• %s" % line, Vector2(rect.position.x + 18, y), 15, Color(0.84, 0.86, 0.87))
+	var shown_lines: Array = lines.slice(0, mini(lines.size(), 10))
+	for line_value in shown_lines:
+		_draw_text("• %s" % str(line_value), Vector2(rect.position.x + 18, y), 15, Color(0.84, 0.86, 0.87))
 		y += 27.0
 
 
@@ -81,17 +86,24 @@ func _draw_action_row() -> void:
 	for index in range(options.size()):
 		var rect := Rect2(row.position.x + index * (width + gap), row.position.y, width, 70)
 		var is_selected: bool = index == selected
-		var fill := Color(0.34, 0.25, 0.12, 0.98) if is_selected else Color(0.12, 0.13, 0.14, 0.98)
-		var border := Color(0.98, 0.77, 0.34, 1.0) if is_selected else Color(0.38, 0.40, 0.42, 0.9)
+		var fill: Color = Color(0.12, 0.13, 0.14, 0.98)
+		var border: Color = Color(0.38, 0.40, 0.42, 0.9)
+		var text_color: Color = Color(0.78, 0.80, 0.82)
+		if is_selected:
+			fill = Color(0.34, 0.25, 0.12, 0.98)
+			border = Color(0.98, 0.77, 0.34, 1.0)
+			text_color = Color(1.0, 0.92, 0.72)
 		draw_rect(rect, fill, true)
 		draw_rect(rect, border, false, 2.0 if is_selected else 1.0)
-		_draw_centered_text(str(options[index]), rect, 16, Color(1.0, 0.92, 0.72) if is_selected else Color(0.78, 0.80, 0.82), is_selected)
+		_draw_centered_text(str(options[index]), rect, 16, text_color, is_selected)
 	_draw_text("方向鍵選擇　Enter／Space 確認　Esc 返回主選單", Vector2(58, 631), 14, Color(0.58, 0.61, 0.64))
 
 
 func _previous_result_lines() -> Array[String]:
+	var stats: Dictionary = {}
 	var stats_value: Variant = _main.get("run_stats")
-	var stats: Dictionary = stats_value as Dictionary if stats_value is Dictionary else {}
+	if stats_value is Dictionary:
+		stats = stats_value as Dictionary
 	return [
 		"擊敗敵軍：%d" % int(stats.get("kills", stats.get("enemies_defeated", 0))),
 		"精英擊破：%d" % int(stats.get("elite_kills", 0)),
@@ -102,14 +114,20 @@ func _previous_result_lines() -> Array[String]:
 
 
 func _carry_over_lines() -> Array[String]:
+	var player: Dictionary = {}
 	var player_value: Variant = _main.get("player")
-	var player: Dictionary = player_value as Dictionary if player_value is Dictionary else {}
+	if player_value is Dictionary:
+		player = player_value as Dictionary
 	var relics: Array = _main.get("relics") as Array
 	var equipment: Array = _main.get("equipment_inventory") as Array
+	var fallback_coins: int = 0
+	var coins_value: Variant = _main.get("coins")
+	if coins_value != null:
+		fallback_coins = int(coins_value)
 	return [
 		"主角等級：Lv.%d" % int(player.get("level", 1)),
 		"目前生命：%d／%d" % [int(round(float(player.get("hp", 0.0)))), int(round(float(player.get("max_hp", 0.0))))],
-		"持有銅錢：%d" % int(player.get("coins", _main.get("coins") if _main.get("coins") != null else 0)),
+		"持有銅錢：%d" % int(player.get("coins", fallback_coins)),
 		"遺物數量：%d" % relics.size(),
 		"裝備庫存：%d" % equipment.size(),
 	]
@@ -149,11 +167,16 @@ func _safe_call_array(method_name: String) -> Array:
 
 
 func _draw_text(text: String, position: Vector2, size: int, color: Color, bold: bool = false) -> void:
-	draw_string(_font_bold if bold else _font, position, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+	var draw_font: Font = _font
+	if bold:
+		draw_font = _font_bold
+	draw_string(draw_font, position, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 
 func _draw_centered_text(text: String, rect: Rect2, size: int, color: Color, bold: bool = false) -> void:
-	var font_value: Font = _font_bold if bold else _font
+	var font_value: Font = _font
+	if bold:
+		font_value = _font_bold
 	var width: float = font_value.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var x: float = rect.position.x + maxf(8.0, (rect.size.x - width) * 0.5)
 	var y: float = rect.position.y + rect.size.y * 0.5 + size * 0.36
