@@ -21,3 +21,27 @@ msgstr "查看下一章"
 
 msgid "ui.return_menu"
 msgstr "返回主選單"
+
+msgid "message.hero_roster.already_assigned"
+msgstr "{hero_name}目前已在{state_name}。"
+
+msgid "message.hero_roster.moved"
+msgstr "{hero_name}已調整至{state_name}。"
+
+msgid "message.hero_roster.replaced"
+msgstr "{hero_name}編入{state_name}，{replaced_name}轉往{replaced_state_name}。"
+
+msgid "message.hero_roster.error"
+msgstr "名將編成未完成，請重新操作。"
+
+msgid "ui.hero_roster.state.active"
+msgstr "主戰"
+
+msgid "ui.hero_roster.state.reserve"
+msgstr "後備"
+
+msgid "ui.hero_roster.state.camp"
+msgstr "營地"
+
+msgid "ui.hero_roster.state.unknown"
+msgstr "未配置"
