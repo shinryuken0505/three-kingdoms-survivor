@@ -22,6 +22,7 @@ on:
       - "tools/check_alpha18_player_facing_metadata.py"
       - "tools/check_alpha18_specialization_offers.py"
       - "tools/check_alpha18_levelup_layout.py"
+      - "tools/check_alpha18_release_contract.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -42,6 +43,7 @@ on:
       - "tools/check_alpha18_player_facing_metadata.py"
       - "tools/check_alpha18_specialization_offers.py"
       - "tools/check_alpha18_levelup_layout.py"
+      - "tools/check_alpha18_release_contract.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -84,3 +86,5 @@ jobs:
         run: python tools/check_alpha18_specialization_offers.py
       - name: Check Alpha.18 level-up layout
         run: python tools/check_alpha18_levelup_layout.py
+      - name: Check Alpha.18 release contract
+        run: python tools/check_alpha18_release_contract.py
