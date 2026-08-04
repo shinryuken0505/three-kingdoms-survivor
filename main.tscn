@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1_main"]
 [ext_resource path="res://scripts/ui/status_effect_hud_layer.gd" type="Script" id="2_status_hud"]
@@ -19,6 +19,8 @@
 [ext_resource path="res://scripts/systems/hero/active_hero_signature_effect_layer.gd" type="Script" id="20_hero_signature"]
 [ext_resource path="res://scripts/systems/combat/enemy_attack_pattern_layer.gd" type="Script" id="21_enemy_patterns"]
 [ext_resource path="res://scripts/ui/combat_diagnostics_layer.gd" type="Script" id="22_combat_diagnostics"]
+[ext_resource path="res://scripts/systems/world/chapter_identity_runtime_layer.gd" type="Script" id="23_chapter_identity"]
+[ext_resource path="res://scripts/systems/combat/boss_phase_runtime_layer.gd" type="Script" id="24_boss_phase"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -76,3 +78,9 @@ script = ExtResource("21_enemy_patterns")
 
 [node name="CombatDiagnosticsLayer" type="Node2D" parent="."]
 script = ExtResource("22_combat_diagnostics")
+
+[node name="ChapterIdentityRuntimeLayer" type="Node" parent="."]
+script = ExtResource("23_chapter_identity")
+
+[node name="BossPhaseRuntimeLayer" type="Node" parent="."]
+script = ExtResource("24_boss_phase")
