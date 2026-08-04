@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1_main"]
 [ext_resource path="res://scripts/ui/status_effect_hud_layer.gd" type="Script" id="2_status_hud"]
@@ -7,7 +7,6 @@
 [ext_resource path="res://scripts/systems/hero/recruitment_roster_guard_layer.gd" type="Script" id="6_recruitment_guard"]
 [ext_resource path="res://scripts/ui/intermission_visual_layer.gd" type="Script" id="7_intermission_visual"]
 [ext_resource path="res://scripts/ui/recruitment_roster_visual_layer.gd" type="Script" id="8_recruitment_visual"]
-[ext_resource path="res://scripts/ui/levelup_card_metadata_layer.gd" type="Script" id="9_levelup_metadata"]
 [ext_resource path="res://scripts/systems/progression/progression_state_guard_layer.gd" type="Script" id="11_progression_guard"]
 
 [node name="Main" type="Node2D"]
@@ -30,9 +29,6 @@ script = ExtResource("7_intermission_visual")
 
 [node name="RecruitmentRosterVisualLayer" type="Node2D" parent="."]
 script = ExtResource("8_recruitment_visual")
-
-[node name="LevelupCardMetadataLayer" type="Node2D" parent="."]
-script = ExtResource("9_levelup_metadata")
 
 [node name="ProgressionStateGuardLayer" type="Node" parent="."]
 script = ExtResource("11_progression_guard")
