@@ -1,2 +1,3 @@
 Trigger Alpha.17 ending flow hardening workflow.
 Retry with corrected smoke routing API.
+Retry with corrected route validation type.
