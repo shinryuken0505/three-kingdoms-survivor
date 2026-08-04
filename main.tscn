@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1_main"]
 [ext_resource path="res://scripts/ui/status_effect_hud_layer.gd" type="Script" id="2_status_hud"]
@@ -10,6 +10,9 @@
 [ext_resource path="res://scripts/systems/progression/progression_state_guard_layer.gd" type="Script" id="11_progression_guard"]
 [ext_resource path="res://scripts/systems/combat/identity_combat_runtime_layer.gd" type="Script" id="12_identity_combat"]
 [ext_resource path="res://scripts/systems/hero/reserve_passive_runtime_layer.gd" type="Script" id="13_reserve_passive"]
+[ext_resource path="res://scripts/systems/combat/identity_combat_feedback_layer.gd" type="Script" id="14_identity_feedback"]
+[ext_resource path="res://scripts/systems/hero/active_hero_specialization_runtime_layer.gd" type="Script" id="15_active_specialization"]
+[ext_resource path="res://scripts/systems/combat/chapter_threat_runtime_layer.gd" type="Script" id="16_chapter_threat"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -40,3 +43,12 @@ script = ExtResource("12_identity_combat")
 
 [node name="ReservePassiveRuntimeLayer" type="Node" parent="."]
 script = ExtResource("13_reserve_passive")
+
+[node name="IdentityCombatFeedbackLayer" type="Node" parent="."]
+script = ExtResource("14_identity_feedback")
+
+[node name="ActiveHeroSpecializationRuntimeLayer" type="Node" parent="."]
+script = ExtResource("15_active_specialization")
+
+[node name="ChapterThreatRuntimeLayer" type="Node" parent="."]
+script = ExtResource("16_chapter_threat")
