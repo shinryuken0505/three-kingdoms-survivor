@@ -36,8 +36,15 @@ jobs:
           use-dotnet: false
           include-templates: false
 
-      - name: Apply complete ending flow patch
-        run: python tools/apply_alpha17_ending_flow_hardening.py
+      - name: Apply ending flow patch when needed
+        run: |
+          if grep -q 'const SNAPSHOT_VERSION: int = 2' scripts/systems/ending/ending_manager.gd \
+             && grep -q 'func can_finalize_campaign()' scripts/chapter_manager.gd \
+             && grep -q 'func draw_ending()' scripts/main.gd; then
+            echo "Ending flow hardening already applied"
+          else
+            python tools/apply_alpha17_ending_flow_hardening.py
+          fi
 
       - name: Align intermission contract and smoke test
         run: |
@@ -86,7 +93,7 @@ jobs:
       - name: Run Alpha.17 integration smoke test
         run: godot --headless --path . --script res://tests/alpha17_integration_smoke_test.gd
 
-      - name: Commit hardened ending flow
+      - name: Commit any final alignment
         run: |
           git config user.name "chatgpt-agent"
           git config user.email "chatgpt-agent@users.noreply.github.com"
@@ -94,8 +101,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "fix: harden final loot and ending flow"
+            git commit -m "fix: align ending flow integration contracts"
             git push origin feature/alpha17-ending
           fi
 
-# retrigger: align current intermission contract
+# retrigger: idempotent final validation
