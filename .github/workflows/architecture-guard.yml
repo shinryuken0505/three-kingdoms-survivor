@@ -27,6 +27,7 @@ on:
       - "tools/check_alpha19_combat_expansion.py"
       - "tools/check_alpha19_combat_feedback.py"
       - "tools/check_alpha19_specialization_patterns.py"
+      - "tools/check_alpha20_chapter_identity.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -52,6 +53,7 @@ on:
       - "tools/check_alpha19_combat_expansion.py"
       - "tools/check_alpha19_combat_feedback.py"
       - "tools/check_alpha19_specialization_patterns.py"
+      - "tools/check_alpha20_chapter_identity.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -104,3 +106,5 @@ jobs:
         run: python tools/check_alpha19_combat_feedback.py
       - name: Check Alpha.19 specialization and enemy patterns
         run: python tools/check_alpha19_specialization_patterns.py
+      - name: Check Alpha.20 chapter identity and boss phases
+        run: python tools/check_alpha20_chapter_identity.py
