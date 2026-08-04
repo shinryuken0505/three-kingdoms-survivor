@@ -50,9 +50,9 @@ func _apply_signature(hero_id: String, flash: Dictionary) -> void:
 		player["attack_speed_buff"] = maxf(float(player.get("attack_speed_buff", 0.0)), 0.55 + float(level) * 0.08)
 	elif hero_id == "daqiao":
 		if float(player.get("shield", 0.0)) > 0.0:
-			player["control_resist"] = clampf(float(player.get("control_resist", 0.0)) + 0.08 + float(level) * 0.01, 0.0, 0.80)
+			player["shield"] = float(player.get("shield", 0.0)) + 4.0 + float(level) * 1.5
 	elif hero_id == "wangyi":
-		player["crit"] = clampf(float(player.get("crit", 0.0)) + 0.035 + float(level) * 0.006, 0.0, 0.80)
+		player["attack_speed_buff"] = maxf(float(player.get("attack_speed_buff", 0.0)), 0.42 + float(level) * 0.07)
 	elif hero_id == "zhangjiao":
 		_trigger_poison_lightning(level)
 	elif hero_id == "taishici":
@@ -156,7 +156,8 @@ func _weaken_nearby_enemies(flash: Dictionary, level: int) -> void:
 		var enemy_pos_value: Variant = enemy.get("pos", Vector2.ZERO)
 		var enemy_pos: Vector2 = enemy_pos_value if enemy_pos_value is Vector2 else Vector2.ZERO
 		if enemy_pos.distance_squared_to(center) <= 250.0 * 250.0:
-			enemy["damage"] = maxf(1.0, float(enemy.get("damage", 1.0)) * (0.90 - minf(0.08, float(level) * 0.01)))
-			enemy["alpha19_weakened"] = true
+			if not bool(enemy.get("alpha19_weakened", false)):
+				enemy["damage"] = maxf(1.0, float(enemy.get("damage", 1.0)) * (0.90 - minf(0.08, float(level) * 0.01)))
+				enemy["alpha19_weakened"] = true
 			enemies[index] = enemy
 	_main.set("enemies", enemies)
