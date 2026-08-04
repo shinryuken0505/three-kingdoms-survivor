@@ -63,3 +63,5 @@ jobs:
             git commit -m "fix: harden final loot and ending flow"
             git push origin feature/alpha17-ending
           fi
+
+# retrigger: 2026-08-04T23:54+08:00
