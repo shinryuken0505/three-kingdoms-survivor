@@ -25,6 +25,7 @@ on:
       - "tools/check_alpha18_release_contract.py"
       - "tools/check_alpha19_identity_combat.py"
       - "tools/check_alpha19_combat_expansion.py"
+      - "tools/check_alpha19_combat_feedback.py"
       - ".github/workflows/architecture-guard.yml"
   pull_request:
     paths:
@@ -48,6 +49,7 @@ on:
       - "tools/check_alpha18_release_contract.py"
       - "tools/check_alpha19_identity_combat.py"
       - "tools/check_alpha19_combat_expansion.py"
+      - "tools/check_alpha19_combat_feedback.py"
       - ".github/workflows/architecture-guard.yml"
   workflow_dispatch:
 
@@ -96,3 +98,5 @@ jobs:
         run: python tools/check_alpha19_identity_combat.py
       - name: Check Alpha.19 combat expansion
         run: python tools/check_alpha19_combat_expansion.py
+      - name: Check Alpha.19 combat feedback
+        run: python tools/check_alpha19_combat_feedback.py
