@@ -47,6 +47,7 @@ jobs:
           text = path.read_text(encoding='utf-8')
           text = text.replace('ScreenRouteRegistry.missing_screen_ids()', 'ScreenRouteRegistry.validate()')
           text = text.replace('ScreenRouteRegistry.route(ScreenIds.INTERMISSION)', 'ScreenRouteRegistry.get_route(ScreenIds.INTERMISSION)')
+          text = text.replace('var missing: Array[StringName] = ScreenRouteRegistry.validate()', 'var missing: Array[String] = ScreenRouteRegistry.validate()')
           path.write_text(text, encoding='utf-8')
           PY
 
@@ -78,4 +79,4 @@ jobs:
             git push origin feature/alpha17-ending
           fi
 
-# retrigger: corrected smoke routing API
+# retrigger: corrected smoke routing type
