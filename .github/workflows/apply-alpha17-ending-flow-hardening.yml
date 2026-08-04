@@ -6,6 +6,9 @@ on:
       - feature/alpha17-ending
     paths:
       - .github/workflows/apply-alpha17-ending-flow-hardening.yml
+  pull_request:
+    branches:
+      - feature/alpha17-ending
   workflow_dispatch:
 
 permissions:
@@ -64,4 +67,4 @@ jobs:
             git push origin feature/alpha17-ending
           fi
 
-# retrigger: 2026-08-04T23:54+08:00
+# retrigger: pull-request based
