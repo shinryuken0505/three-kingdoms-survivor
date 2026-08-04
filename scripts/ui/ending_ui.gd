@@ -29,17 +29,11 @@ static func draw(host: Node, snapshot: Dictionary) -> void:
 
 	host.draw_text("同行群英", right.position + Vector2(24, 40), 21, Color8(235, 211, 157), true)
 	host.draw_wrapped(
-		"主動：%s\n後備：%s" % [
-			host.ending_hero_names(snapshot.get("active_heroes", [])),
-			host.ending_hero_names(snapshot.get("reserve_heroes", []))
-		],
-		Rect2(right.position + Vector2(24, 58), Vector2(432, 78)),
-		16,
-		Color8(207, 214, 204),
-		24.0
+		"主動：%s\n後備：%s" % [host.ending_hero_names(snapshot.get("active_heroes", [])), host.ending_hero_names(snapshot.get("reserve_heroes", []))],
+		Rect2(right.position + Vector2(24, 58), Vector2(432, 78)), 16, Color8(207, 214, 204), 24.0
 	)
 	host.draw_text("最終裝備", right.position + Vector2(24, 158), 19, Color8(235, 211, 157), true)
-	host.draw_wrapped(host.ending_equipment_summary(), Rect2(right.position + Vector2(24, 176), Vector2(432, 58)), 15, Color8(194, 204, 194), 22.0)
+	host.draw_wrapped(host.ending_equipment_summary(snapshot), Rect2(right.position + Vector2(24, 176), Vector2(432, 58)), 15, Color8(194, 204, 194), 22.0)
 	host.draw_wrapped("史官評曰：%s" % str(snapshot.get("historian_comment", "")), Rect2(145, 548, 990, 54), 16, Color8(212, 194, 151), 23.0, true)
 
 	var button := Rect2(485, 612, 310, 50)

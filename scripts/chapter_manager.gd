@@ -192,6 +192,20 @@ func advance_to_next() -> bool:
 	return true
 
 
+func can_finalize_chapter() -> bool:
+	return boss_state == BossState.DEFEATED
+
+
+func can_finalize_campaign() -> bool:
+	return is_final_chapter() and can_finalize_chapter()
+
+
+func finalize_campaign() -> bool:
+	if not can_finalize_campaign():
+		return false
+	return resolve_chapter()
+
+
 func boss_state_label() -> String:
 	match boss_state:
 		BossState.LOCKED:

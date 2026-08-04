@@ -4007,24 +4007,18 @@ func accept_boss_loot() -> void:
 
 
 func finalize_chapter_victory() -> void:
-	chapter_manager.resolve_chapter()
+	if chosen_mode == "story" and chapter_manager.is_final_chapter():
+		finalize_campaign_ending()
+		return
+	if not chapter_manager.resolve_chapter():
+		push_error("Chapter victory could not be resolved")
+		return
 	screen = "victory"
 	var definition: Dictionary = chapter_manager.boss_definition()
 	game_over_reason = "擊敗%s，%s戰局暫告一段落。" % [str(definition.get("name", "敵將")), chapter_manager.current_title()]
 	chapter_clear_snapshot = {
-		"chapter": chapter_manager.current().duplicate(true),
-		"next": chapter_manager.next_chapter().duplicate(true),
-		"stats": run_stats.duplicate(true),
-		"active_heroes": active_heroes.duplicate(),
-		"reserve_heroes": reserve_heroes.duplicate(),
-		"camp_heroes": camp_heroes.duplicate(),
-		"relics": relics.duplicate(),
-		"relic_levels": relic_levels.duplicate(true),
-		"equipment_inventory": equipment_inventory.duplicate(),
-		"boss_defeat_counts": boss_defeat_counts.duplicate(true),
-		"equipped": equipped.duplicate(true),
-		"skills": skill_levels.duplicate(true),
-		"coins": int(player.get("coins", 0)),
+		"chapter_id": chapter_manager.current_id(),
+		"chapter_title": chapter_manager.current_title(),
 		"reward_relic": chapter_reward_relic
 	}
 	if chapter_manager.has_next_chapter():
@@ -4032,7 +4026,6 @@ func finalize_chapter_victory() -> void:
 	else:
 		clear_run_checkpoint()
 	option_index = 0
-
 
 func random_relic_offer(preferred: String = "") -> String:
 	if preferred != "" and relic_defs.has(preferred):
@@ -6912,11 +6905,8 @@ func end_run(victory: bool) -> void:
 	chest_active = false
 	if victory:
 		boss_spawned = false
-		if chosen_mode == "story" and chapter_manager.is_final_chapter():
-			finalize_campaign_ending()
-		else:
-			prepare_boss_loot()
-			screen = "boss_loot"
+		prepare_boss_loot()
+		screen = "boss_loot"
 	else:
 		boss_spawned = false
 		screen = "game_over"
@@ -9699,17 +9689,25 @@ Enter／Space 切換", Rect2(detail.position + Vector2(22, 334), Vector2(270, 72
 	draw_text("Esc返回", Vector2(145, 641), 14, Color8(178, 188, 179))
 
 
-func finalize_campaign_ending() -> void:
+func finalize_campaign_ending() -> bool:
 	if ending_committed:
-		return
+		return true
+	if not chapter_manager.can_finalize_campaign():
+		push_error("Campaign ending requested before final boss defeat")
+		return false
 	ending_committed = true
-	if not chapter_manager.boss_is_defeated():
-		ending_committed = false
-		return
 	var definition: Dictionary = chapter_manager.boss_definition()
+	var run_save: Dictionary = save_data.get("run_save", {}) as Dictionary
+	var run_id: String = str(run_save.get("run_id", ""))
+	if run_id.is_empty():
+		run_id = "%s:%s:%s" % [chosen_mode, chosen_identity, str(run_save.get("saved_at", save_data.get("last_saved_at", "unknown")))]
 	var context: Dictionary = {
+		"run_id": run_id,
+		"mode": chosen_mode,
+		"difficulty": difficulty_id(),
 		"chapter_id": chapter_manager.current_id(),
 		"chapter_title": chapter_manager.current_title(),
+		"boss_id": str(definition.get("id", "")),
 		"identity": chosen_identity,
 		"elapsed": elapsed,
 		"stats": run_stats.duplicate(true),
@@ -9718,27 +9716,42 @@ func finalize_campaign_ending() -> void:
 		"active_bonds": active_bonds.duplicate(),
 		"relics": relics.duplicate(),
 		"equipment": equipped.duplicate(true),
+		"completed_chapters": chapter_manager.completed_ids(),
 		"history_log": history_log.duplicate(),
 		"route_tags": history_route_tags.duplicate(true),
 		"faction_momentum": faction_momentum.duplicate(true),
 		"rewrite_rate": history_rewrite_rate
 	}
+	var validation_errors: Array[String] = ending_manager.validate_context(context)
+	if not validation_errors.is_empty():
+		ending_committed = false
+		push_error("Ending context rejected: %s" % "; ".join(validation_errors))
+		return false
 	ending_snapshot = ending_manager.build_snapshot(context)
-	var ending_id: String = str(ending_snapshot.get("ending_id", "historical_witness"))
+	var previous_save_data: Dictionary = save_data.duplicate(true)
 	if not (save_data.get("endings", {}) is Dictionary):
 		save_data["endings"] = {}
+	var ending_id: String = str(ending_snapshot.get("ending_id", "historical_witness"))
 	(save_data["endings"] as Dictionary)[ending_id] = ending_snapshot.duplicate(true)
 	save_data["latest_ending"] = ending_snapshot.duplicate(true)
-	chapter_manager.resolve_chapter()
+	save_data["run_save"] = {}
+	if not save_game_meta():
+		save_data = previous_save_data
+		ending_committed = false
+		ending_snapshot["historian_comment"] = str(ending_snapshot.get("historian_comment", "")) + "（結局紀錄寫入失敗；章間進度仍保留。）"
+		screen = "ending"
+		option_index = 0
+		return false
+	if not chapter_manager.finalize_campaign():
+		push_error("Ending saved but chapter manager could not finalize campaign")
 	game_over_reason = "擊敗%s，亂世旅程寫下最終一頁。" % str(definition.get("name", "最終敵將"))
 	pending_boss_loot.clear()
 	chapter_reward_relic = ""
-	clear_run_checkpoint()
 	option_index = 0
 	screen = "ending"
 	play_bgm("victory", 1.2)
 	play_sfx("equipment_drop", 0.85)
-
+	return true
 
 func ending_hero_names(ids: Variant) -> String:
 	var names: Array[String] = []
@@ -9749,9 +9762,9 @@ func ending_hero_names(ids: Variant) -> String:
 	return "、".join(names) if not names.is_empty() else "無"
 
 
-func ending_equipment_summary() -> String:
+func ending_equipment_summary(snapshot: Dictionary = ending_snapshot) -> String:
 	var parts: Array[String] = []
-	var equipment: Dictionary = ending_snapshot.get("equipment", {}) as Dictionary
+	var equipment: Dictionary = snapshot.get("equipment", {}) as Dictionary
 	for slot in ["weapon", "body", "treasure", "accessory", "jade"]:
 		var eid: String = str(equipment.get(slot, ""))
 		if eid != "" and equipment_defs.has(eid):
@@ -9761,6 +9774,17 @@ func ending_equipment_summary() -> String:
 
 func draw_ending_screen() -> void:
 	EndingUIScript.draw(self, ending_snapshot)
+
+
+func draw_ending() -> void:
+	draw_ending_screen()
+
+
+func handle_ending_key(key: int) -> void:
+	if is_confirm_key(key) or key == KEY_ESCAPE:
+		option_index = 0
+		handle_victory_option(0)
+
 
 func draw_boss_loot_screen() -> void:
 	BossLootUIScript.draw(self, pending_boss_loot)

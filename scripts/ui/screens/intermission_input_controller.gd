@@ -33,7 +33,7 @@ static func command_for_button(buttons: Array, selected_index: int) -> StringNam
 		return &""
 	var index: int = posmod(selected_index, buttons.size())
 	var button: Dictionary = buttons[index] as Dictionary
-	return StringName(button.get("id", &""))
+	return StringName(button.get("id", button.get("key", &"")))
 
 
 static func _result(handled: bool, command: StringName, selected_index: int) -> Dictionary:

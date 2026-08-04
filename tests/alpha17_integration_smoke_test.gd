@@ -31,26 +31,27 @@ func test_main_scene_wiring() -> void:
 	check(root != null, "main.tscn should instantiate")
 	if root != null:
 		check(root.has_node("StatusEffectHudLayer"), "main scene should mount StatusEffectHudLayer")
+		check(root.has_method("draw_ending"), "ending route draw method should exist")
+		check(root.has_method("handle_ending_key"), "ending route input method should exist")
 		root.free()
 
 
 func test_screen_registry() -> void:
-	var missing: Array[StringName] = ScreenRouteRegistry.missing_screen_ids()
+	var missing: Array[String] = ScreenRouteRegistry.validate()
 	check(missing.is_empty(), "every ScreenIds entry should have a route")
-	var intermission: Dictionary = ScreenRouteRegistry.route(ScreenIds.INTERMISSION)
-	check(str(intermission.get("draw", "")) == "draw_intermission_screen", "intermission draw route should remain stable")
-	check(str(intermission.get("input", "")) == "handle_intermission_key", "intermission input route should remain stable")
+	var intermission: Dictionary = ScreenRouteRegistry.get_route(ScreenIds.INTERMISSION)
+	check(str(intermission.get(ScreenRouteRegistry.DRAW_METHOD, "")) == "draw_intermission_screen", "intermission draw route should remain stable")
+	check(str(intermission.get(ScreenRouteRegistry.INPUT_METHOD, "")) == "handle_intermission_key", "intermission input route should remain stable")
 
 
 func test_intermission_contract() -> void:
 	var model: Dictionary = IntermissionScreenModel.build({
-		"view_size": Vector2(1280.0, 720.0),
 		"selected_index": 1,
 		"previous_result": ["章節完成"],
 		"carry_over": ["銅錢 120"],
 		"history": ["史勢演變"],
-	})
-	var buttons: Array = model.get("buttons", []) as Array
+	}, 1, Vector2(1280.0, 720.0))
+	var buttons: Array = model.get("actions", []) as Array
 	check(buttons.size() == 4, "intermission should expose four default actions")
 	check(IntermissionInputController.command_for_button(buttons, 1) != &"", "selected intermission action should have stable id")
 	var layout: Dictionary = model.get("layout", {}) as Dictionary
