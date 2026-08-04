@@ -39,6 +39,17 @@ jobs:
       - name: Apply complete ending flow patch
         run: python tools/apply_alpha17_ending_flow_hardening.py
 
+      - name: Update smoke test routing API
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/alpha17_integration_smoke_test.gd')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('ScreenRouteRegistry.missing_screen_ids()', 'ScreenRouteRegistry.validate()')
+          text = text.replace('ScreenRouteRegistry.route(ScreenIds.INTERMISSION)', 'ScreenRouteRegistry.get_route(ScreenIds.INTERMISSION)')
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Run structural checks
         run: |
           python tools/check_ending_flow_hardening.py
@@ -67,4 +78,4 @@ jobs:
             git push origin feature/alpha17-ending
           fi
 
-# retrigger: pull-request based
+# retrigger: corrected smoke routing API
