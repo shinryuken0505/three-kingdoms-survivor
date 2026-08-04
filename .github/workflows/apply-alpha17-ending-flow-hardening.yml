@@ -39,15 +39,34 @@ jobs:
       - name: Apply complete ending flow patch
         run: python tools/apply_alpha17_ending_flow_hardening.py
 
-      - name: Update smoke test routing API
+      - name: Align intermission contract and smoke test
         run: |
           python - <<'PY'
           from pathlib import Path
+
+          input_path = Path('scripts/ui/screens/intermission_input_controller.gd')
+          input_text = input_path.read_text(encoding='utf-8')
+          input_text = input_text.replace(
+              'return StringName(button.get("id", &""))',
+              'return StringName(button.get("id", button.get("key", &"")))'
+          )
+          input_path.write_text(input_text, encoding='utf-8')
+
           path = Path('tests/alpha17_integration_smoke_test.gd')
           text = path.read_text(encoding='utf-8')
           text = text.replace('ScreenRouteRegistry.missing_screen_ids()', 'ScreenRouteRegistry.validate()')
           text = text.replace('ScreenRouteRegistry.route(ScreenIds.INTERMISSION)', 'ScreenRouteRegistry.get_route(ScreenIds.INTERMISSION)')
           text = text.replace('var missing: Array[StringName] = ScreenRouteRegistry.validate()', 'var missing: Array[String] = ScreenRouteRegistry.validate()')
+          text = text.replace('intermission.get("draw", "")', 'intermission.get(ScreenRouteRegistry.DRAW_METHOD, "")')
+          text = text.replace('intermission.get("input", "")', 'intermission.get(ScreenRouteRegistry.INPUT_METHOD, "")')
+          text = text.replace(
+              'var model: Dictionary = IntermissionScreenModel.build({\n\t\t"view_size": Vector2(1280.0, 720.0),',
+              'var model: Dictionary = IntermissionScreenModel.build({'
+          )
+          text = text.replace(
+              '\t\t"history": ["史勢演變"],\n\t})\n\tvar buttons: Array = model.get("buttons", []) as Array',
+              '\t\t"history": ["史勢演變"],\n\t}, 1, Vector2(1280.0, 720.0))\n\tvar buttons: Array = model.get("actions", []) as Array'
+          )
           path.write_text(text, encoding='utf-8')
           PY
 
@@ -71,7 +90,7 @@ jobs:
         run: |
           git config user.name "chatgpt-agent"
           git config user.email "chatgpt-agent@users.noreply.github.com"
-          git add scripts/main.gd scripts/chapter_manager.gd scripts/systems/ending/ending_manager.gd scripts/ui/ending_ui.gd tests/alpha17_integration_smoke_test.gd tests/ending_manager_test.gd tools/check_ending_flow_hardening.py tools/apply_alpha17_ending_flow_hardening.py
+          git add scripts/main.gd scripts/chapter_manager.gd scripts/systems/ending/ending_manager.gd scripts/ui/ending_ui.gd scripts/ui/screens/intermission_input_controller.gd tests/alpha17_integration_smoke_test.gd tests/ending_manager_test.gd tools/check_ending_flow_hardening.py tools/apply_alpha17_ending_flow_hardening.py
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
@@ -79,4 +98,4 @@ jobs:
             git push origin feature/alpha17-ending
           fi
 
-# retrigger: corrected smoke routing type
+# retrigger: align current intermission contract
