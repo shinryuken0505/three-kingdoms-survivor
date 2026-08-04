@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1_main"]
 [ext_resource path="res://scripts/ui/status_effect_hud_layer.gd" type="Script" id="2_status_hud"]
@@ -21,6 +21,8 @@
 [ext_resource path="res://scripts/ui/combat_diagnostics_layer.gd" type="Script" id="22_combat_diagnostics"]
 [ext_resource path="res://scripts/systems/world/chapter_identity_runtime_layer.gd" type="Script" id="23_chapter_identity"]
 [ext_resource path="res://scripts/systems/combat/boss_phase_runtime_layer.gd" type="Script" id="24_boss_phase"]
+[ext_resource path="res://scripts/systems/world/history_consequence_runtime_layer.gd" type="Script" id="25_history_consequence"]
+[ext_resource path="res://scripts/systems/world/chapter_mission_runtime_layer.gd" type="Script" id="26_chapter_mission"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -84,3 +86,9 @@ script = ExtResource("23_chapter_identity")
 
 [node name="BossPhaseRuntimeLayer" type="Node" parent="."]
 script = ExtResource("24_boss_phase")
+
+[node name="HistoryConsequenceRuntimeLayer" type="Node" parent="."]
+script = ExtResource("25_history_consequence")
+
+[node name="ChapterMissionRuntimeLayer" type="Node" parent="."]
+script = ExtResource("26_chapter_mission")
