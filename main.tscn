@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1_main"]
 [ext_resource path="res://scripts/ui/status_effect_hud_layer.gd" type="Script" id="2_status_hud"]
@@ -13,6 +13,9 @@
 [ext_resource path="res://scripts/systems/combat/identity_combat_feedback_layer.gd" type="Script" id="14_identity_feedback"]
 [ext_resource path="res://scripts/systems/hero/active_hero_specialization_runtime_layer.gd" type="Script" id="15_active_specialization"]
 [ext_resource path="res://scripts/systems/combat/chapter_threat_runtime_layer.gd" type="Script" id="16_chapter_threat"]
+[ext_resource path="res://scripts/ui/combat_feedback_hud_layer.gd" type="Script" id="17_combat_feedback_hud"]
+[ext_resource path="res://scripts/systems/hero/zhangfei_shockwave_runtime_layer.gd" type="Script" id="18_zhangfei_shockwave"]
+[ext_resource path="res://scripts/systems/combat/enemy_tactics_runtime_layer.gd" type="Script" id="19_enemy_tactics"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -52,3 +55,12 @@ script = ExtResource("15_active_specialization")
 
 [node name="ChapterThreatRuntimeLayer" type="Node" parent="."]
 script = ExtResource("16_chapter_threat")
+
+[node name="CombatFeedbackHudLayer" type="Node2D" parent="."]
+script = ExtResource("17_combat_feedback_hud")
+
+[node name="ZhangfeiShockwaveRuntimeLayer" type="Node" parent="."]
+script = ExtResource("18_zhangfei_shockwave")
+
+[node name="EnemyTacticsRuntimeLayer" type="Node" parent="."]
+script = ExtResource("19_enemy_tactics")
