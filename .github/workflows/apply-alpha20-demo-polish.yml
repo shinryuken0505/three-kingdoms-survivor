@@ -1,0 +1,83 @@
+name: Apply Alpha.20 Demo Polish
+
+on:
+  push:
+    branches:
+      - feature/alpha20-demo-polish
+    paths:
+      - .github/workflows/apply-alpha20-demo-polish.yml
+  pull_request:
+    branches:
+      - feature/alpha20-demo-polish
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-alpha20-demo-polish
+  cancel-in-progress: false
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Alpha.20 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha20-demo-polish
+          fetch-depth: 0
+
+      - name: Install Godot 4.7.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Apply Alpha.20 demo polish
+        run: |
+          python tools/apply_alpha20_demo_polish.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/main.gd')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('\tvar base_mult: float = float(player.get("alpha19_damage_mult", 1.0))\n\tplayer["alpha19_damage_mult"] = clamp(base_mult * float(player.get("alpha20_damage_mult", 1.0)), 0.85, 2.35)\n', '')
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Run structural checks
+        run: |
+          python tools/check_alpha20_demo_polish.py
+          python tools/check_alpha19_full.py
+          python tools/check_alpha17_integration.py
+          python tools/check_navigation_architecture.py
+          python tools/check_runtime_integration.py
+
+      - name: Import and parse Godot project
+        run: godot --headless --path . --editor --quit
+
+      - name: Run Alpha.20 demo polish test
+        run: godot --headless --path . --script res://tests/alpha20_demo_polish_test.gd
+
+      - name: Run Alpha.19 rules test
+        run: godot --headless --path . --script res://tests/alpha19_rules_test.gd
+
+      - name: Run ending test
+        run: godot --headless --path . --script res://tests/ending_manager_test.gd
+
+      - name: Run integration smoke test
+        run: godot --headless --path . --script res://tests/alpha17_integration_smoke_test.gd
+
+      - name: Commit Alpha.20 edition
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/demo/alpha20_demo_director.gd scripts/systems/demo/alpha20_challenge_tracker.gd scripts/systems/demo/alpha20_demo_profile.gd tests/alpha20_demo_polish_test.gd docs/ALPHA20_DEMO_POLISH.md tools/check_alpha20_demo_polish.py
+          if git diff --cached --quiet; then
+            echo "No Alpha.20 changes to commit"
+          else
+            git commit -m "feat: deliver V2.0.0 Alpha.20 demo polish"
+            git push origin feature/alpha20-demo-polish
+          fi
