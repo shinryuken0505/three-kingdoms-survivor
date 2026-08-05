@@ -1,0 +1,152 @@
+name: Apply Alpha.17 Visual Merchant Upgrade
+
+on:
+  push:
+    branches:
+      - feature/alpha17-ending
+    paths:
+      - .github/workflows/apply-alpha17-visual-merchant-upgrade.yml
+  pull_request:
+    branches:
+      - feature/alpha17-ending
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: alpha17-visual-merchant-upgrade
+  cancel-in-progress: false
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha17-ending
+          fetch-depth: 0
+
+      - name: Install Godot 4.7.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Install portrait tooling
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Apply gameplay and visual patch
+        run: python tools/apply_alpha17_visual_merchant_upgrade.py
+
+      - name: Generate remastered portrait cards
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
+
+          root = Path('.')
+          sprites = root / 'assets' / 'sprites'
+          output = root / 'assets' / 'portraits_remastered'
+          output.mkdir(parents=True, exist_ok=True)
+
+          ids = [
+              'huangzhong','huatuo','fazheng','chengong','simayi','caocao',
+              'taishici','luxun','zhouyu','sunjian','xiahouyuan','xiahouen',
+              'zhangfei','weiyan','zhanghe','jiangwei','zhangliao','caoren'
+          ]
+          accents = [(196,146,74),(94,152,113),(106,119,158),(175,77,61)]
+
+          for index, cid in enumerate(ids):
+              source = sprites / f'{cid}_default.png'
+              if not source.exists():
+                  continue
+              sprite = Image.open(source).convert('RGBA')
+              bbox = sprite.getbbox()
+              if bbox:
+                  sprite = sprite.crop(bbox)
+              sprite = ImageEnhance.Contrast(sprite).enhance(1.16)
+              sprite = ImageEnhance.Color(sprite).enhance(1.12)
+              sprite = ImageEnhance.Sharpness(sprite).enhance(1.5)
+
+              canvas = Image.new('RGBA', (512, 640), (18, 20, 23, 255))
+              accent = accents[index % len(accents)]
+              draw = ImageDraw.Draw(canvas)
+              for y in range(640):
+                  t = y / 639.0
+                  base = tuple(int(15 + (c * 0.20) * (1.0 - t)) for c in accent)
+                  draw.line((0, y, 511, y), fill=(*base, 255))
+              draw.ellipse((80, 70, 432, 422), fill=(*accent, 48), outline=(*accent, 130), width=5)
+              draw.rectangle((22, 22, 489, 617), outline=(*accent, 205), width=6)
+              draw.rectangle((34, 34, 477, 605), outline=(238, 218, 174, 100), width=2)
+
+              max_w, max_h = 390, 470
+              scale = min(max_w / max(1, sprite.width), max_h / max(1, sprite.height))
+              scale = max(scale, 4.0)
+              sprite = sprite.resize((max(1, int(sprite.width * scale)), max(1, int(sprite.height * scale))), Image.Resampling.NEAREST)
+              glow = Image.new('RGBA', sprite.size, (0,0,0,0))
+              glow.alpha_composite(sprite)
+              alpha = glow.getchannel('A').filter(ImageFilter.GaussianBlur(14))
+              tint = Image.new('RGBA', glow.size, (*accent, 0))
+              tint.putalpha(alpha.point(lambda p: int(p * 0.52)))
+              x = (512 - sprite.width) // 2
+              y = 525 - sprite.height
+              canvas.alpha_composite(tint, (x, y))
+              canvas.alpha_composite(sprite, (x, y))
+
+              # 下方留出角色名與說明的 UI 安全帶，不直接把文字烙進素材。
+              draw = ImageDraw.Draw(canvas)
+              draw.rectangle((34, 535, 477, 605), fill=(8, 10, 12, 188), outline=(*accent, 155), width=2)
+              canvas.save(output / f'{cid}_default.png', optimize=True)
+          PY
+
+      - name: Verify portrait identity assets
+        run: |
+          test -f assets/portraits_remastered/huangzhong_default.png
+          test -f assets/portraits_remastered/huatuo_default.png
+          python - <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          a = sha256(Path('assets/portraits_remastered/huangzhong_default.png').read_bytes()).hexdigest()
+          b = sha256(Path('assets/portraits_remastered/huatuo_default.png').read_bytes()).hexdigest()
+          if a == b:
+              raise SystemExit('Huang Zhong and Hua Tuo portraits must be distinct')
+          text = Path('scripts/main.gd').read_text(encoding='utf-8')
+          required = [
+              'var total_count: int = item_count + 2',
+              'previous_screen = "shop"',
+              '交易完成，可繼續選購或前往裝備整備。',
+              'func emphasize_damage_number',
+              'func apply_character_art_fallbacks',
+          ]
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit('Missing upgrade markers: ' + ', '.join(missing))
+          print('[PASS] visual merchant structural checks')
+          PY
+
+      - name: Import and parse Godot project
+        run: godot --headless --path . --editor --quit
+
+      - name: Run existing automated tests
+        run: |
+          python tools/check_alpha17_integration.py
+          python tools/check_navigation_architecture.py
+          python tools/check_runtime_integration.py
+          godot --headless --path . --script res://tests/ending_manager_test.gd
+          godot --headless --path . --script res://tests/alpha17_integration_smoke_test.gd
+
+      - name: Commit completed upgrade
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd assets/portraits_remastered tools/apply_alpha17_visual_merchant_upgrade.py
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "feat: improve merchant flow and combat visuals"
+            git push origin feature/alpha17-ending
+          fi
