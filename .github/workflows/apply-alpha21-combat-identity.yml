@@ -1,0 +1,87 @@
+name: Apply Alpha.21 Combat Identity
+
+on:
+  push:
+    branches:
+      - feature/alpha21-combat-identity
+    paths:
+      - .github/workflows/apply-alpha21-combat-identity.yml
+      - tools/apply_alpha21_combat_identity.py
+      - scripts/systems/combat/alpha21_combat_identity.gd
+      - scripts/systems/hero/alpha21_hero_signatures.gd
+      - scripts/systems/boss/alpha21_boss_patterns.gd
+      - tests/alpha21_combat_identity_test.gd
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-alpha21-combat-identity
+  cancel-in-progress: false
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Alpha.21 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha21-combat-identity
+          fetch-depth: 0
+
+      - name: Install Godot 4.7.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Apply Alpha.21 combat identity
+        run: python tools/apply_alpha21_combat_identity.py
+
+      - name: Validate version and integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          project = Path('project.godot').read_text(encoding='utf-8')
+          assert 'V2.0.0-alpha.21' in main
+          assert 'V2.0.0-alpha.21' in project
+          assert 'Alpha21CombatIdentity' in main
+          assert 'alpha21_identity_damage_multiplier()' in main
+          assert 'func alpha21_boss_next_move()' in main
+          print('ALPHA21_INTEGRATION_OK')
+          PY
+          python tools/check_alpha20_demo_polish.py
+          python tools/check_alpha17_integration.py
+          python tools/check_navigation_architecture.py
+          python tools/check_runtime_integration.py
+
+      - name: Import and parse Godot project
+        run: godot --headless --path . --editor --quit
+
+      - name: Run Alpha.21 rules test
+        run: godot --headless --path . --script res://tests/alpha21_combat_identity_test.gd
+
+      - name: Run Alpha.20 regression test
+        run: godot --headless --path . --script res://tests/alpha20_demo_polish_test.gd
+
+      - name: Run Alpha.19 regression test
+        run: godot --headless --path . --script res://tests/alpha19_rules_test.gd
+
+      - name: Run ending regression test
+        run: godot --headless --path . --script res://tests/ending_manager_test.gd
+
+      - name: Commit Alpha.21 runtime integration
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd project.godot
+          if git diff --cached --quiet; then
+            echo "No generated Alpha.21 changes to commit"
+          else
+            git commit -m "feat: integrate V2.0.0 Alpha.21 combat identity"
+            git push origin feature/alpha21-combat-identity
+          fi
