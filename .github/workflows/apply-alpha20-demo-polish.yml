@@ -42,10 +42,17 @@ jobs:
           python tools/fix_alpha20_level_choice_types.py
           python - <<'PY'
           from pathlib import Path
-          path = Path('scripts/main.gd')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('\tvar base_mult: float = float(player.get("alpha19_damage_mult", 1.0))\n\tplayer["alpha19_damage_mult"] = clamp(base_mult * float(player.get("alpha20_damage_mult", 1.0)), 0.85, 2.35)\n', '')
-          path.write_text(text, encoding='utf-8')
+
+          main_path = Path('scripts/main.gd')
+          main_text = main_path.read_text(encoding='utf-8')
+          main_text = main_text.replace('\tvar base_mult: float = float(player.get("alpha19_damage_mult", 1.0))\n\tplayer["alpha19_damage_mult"] = clamp(base_mult * float(player.get("alpha20_damage_mult", 1.0)), 0.85, 2.35)\n', '')
+          main_text = main_text.replace('V2.0.0 Alpha.17・亂世終卷', 'V2.0.0 Alpha.20・戰場磨礪')
+          main_path.write_text(main_text, encoding='utf-8')
+
+          project_path = Path('project.godot')
+          project_text = project_path.read_text(encoding='utf-8')
+          project_text = project_text.replace('三國人生錄：亂世倖存 V2.0.0-alpha.17', '三國人生錄：亂世倖存 V2.0.0-alpha.20')
+          project_path.write_text(project_text, encoding='utf-8')
           PY
 
       - name: Run structural checks
@@ -74,10 +81,10 @@ jobs:
         run: |
           git config user.name "chatgpt-agent"
           git config user.email "chatgpt-agent@users.noreply.github.com"
-          git add scripts/main.gd scripts/systems/demo/alpha20_demo_director.gd scripts/systems/demo/alpha20_challenge_tracker.gd scripts/systems/demo/alpha20_demo_profile.gd tests/alpha20_demo_polish_test.gd docs/ALPHA20_DEMO_POLISH.md tools/check_alpha20_demo_polish.py tools/fix_alpha20_level_choice_types.py
+          git add project.godot scripts/main.gd scripts/systems/demo/alpha20_demo_director.gd scripts/systems/demo/alpha20_challenge_tracker.gd scripts/systems/demo/alpha20_demo_profile.gd tests/alpha20_demo_polish_test.gd docs/ALPHA20_DEMO_POLISH.md tools/check_alpha20_demo_polish.py tools/fix_alpha20_level_choice_types.py
           if git diff --cached --quiet; then
             echo "No Alpha.20 changes to commit"
           else
-            git commit -m "fix: support string level choices in Alpha.20"
+            git commit -m "fix: update Alpha.20 titles and level choice handling"
             git push origin feature/alpha20-demo-polish
           fi
