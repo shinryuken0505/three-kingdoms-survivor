@@ -20,12 +20,15 @@ const Alpha21BossPatterns = preload("res://scripts/systems/boss/alpha21_boss_pat
 const Alpha22MetaProgression = preload("res://scripts/systems/meta/alpha22_meta_progression.gd")
 const Alpha22Codex = preload("res://scripts/systems/meta/alpha22_codex.gd")
 const Alpha22Achievements = preload("res://scripts/systems/meta/alpha22_achievements.gd")
+const Alpha23StoryDirector = preload("res://scripts/systems/story/alpha23_story_director.gd")
+const Alpha23RouteResolver = preload("res://scripts/systems/story/alpha23_route_resolver.gd")
+const Alpha23EndingRoutes = preload("res://scripts/systems/ending/alpha23_ending_routes.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.22"
+const GAME_VERSION: String = "V2.0.0-alpha.23"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -115,6 +118,7 @@ var save_data: Dictionary = {
 	"meta_progression": {},
 	"codex": {},
 	"achievements": {},
+	"story_routes": {},
 	"settings": {
 		"bgm": 0.70,
 		"sfx": 0.80,
@@ -241,6 +245,10 @@ var alpha22_meta_state: Dictionary = {}
 var alpha22_codex_state: Dictionary = {}
 var alpha22_achievement_state: Dictionary = {}
 var alpha22_last_rewards: Array[String] = []
+var alpha23_route_state: Dictionary = {}
+var alpha23_story_scene: Dictionary = {}
+var alpha23_chapter_variant: Dictionary = {}
+var alpha23_pending_ending: Dictionary = {}
 
 # 章節安全點／寶箱／遺物循環
 var camp_active: bool = false
@@ -10247,6 +10255,7 @@ func alpha21_initialize_run() -> void:
 	alpha21_boss_sequence = 0
 	alpha21_boss_phase = 1
 	alpha22_initialize_profile()
+	alpha23_initialize_story()
 	var crit_bonus: float = Alpha21CombatIdentity.crit_bonus(chosen_identity)
 	player["alpha21_crit_bonus"] = crit_bonus
 	player["alpha21_dash_cd_mult"] = Alpha21CombatIdentity.dash_cooldown_multiplier(chosen_identity)
@@ -10377,3 +10386,50 @@ func alpha22_summary() -> String:
 		alpha22_achievement_state.get("unlocked", {}).size(),
 		Alpha22Achievements.DEFINITIONS.size(),
 	]
+
+
+# Alpha.23：章節故事、歷史路線、關卡變體與多結局。
+func alpha23_initialize_story() -> void:
+	var raw: Variant = save_data.get("story_routes", {})
+	alpha23_route_state = raw.duplicate(true) if raw is Dictionary and not raw.is_empty() else Alpha23RouteResolver.new_state()
+	alpha23_story_scene.clear()
+	alpha23_chapter_variant.clear()
+	alpha23_pending_ending.clear()
+
+
+func alpha23_apply_history_choice(choice_id: String, effects: Dictionary) -> Dictionary:
+	alpha23_route_state = Alpha23RouteResolver.apply_choice(alpha23_route_state, choice_id, effects)
+	save_data["story_routes"] = alpha23_route_state.duplicate(true)
+	return alpha23_route_state.duplicate(true)
+
+
+func alpha23_prepare_chapter_story(phase: String = "opening") -> Dictionary:
+	var chapter_id: String = ""
+	if chapter_manager != null:
+		chapter_id = str(current_chapter().get("id", ""))
+	alpha23_story_scene = Alpha23StoryDirector.chapter_scene(chapter_id, phase, alpha23_route_state)
+	alpha23_chapter_variant = Alpha23RouteResolver.chapter_variant(chapter_id, alpha23_route_state)
+	return alpha23_story_scene.duplicate(true)
+
+
+func alpha23_current_chapter_variant() -> Dictionary:
+	if alpha23_chapter_variant.is_empty():
+		alpha23_prepare_chapter_story("opening")
+	return alpha23_chapter_variant.duplicate(true)
+
+
+func alpha23_resolve_ending(run_summary: Dictionary) -> Dictionary:
+	alpha23_pending_ending = Alpha23EndingRoutes.resolve(alpha23_route_state, run_summary)
+	var ending_id: String = str(alpha23_pending_ending.get("id", ""))
+	if ending_id != "":
+		alpha22_discover("endings", ending_id, {
+			"name": str(alpha23_pending_ending.get("title", ending_id)),
+			"route": str(alpha23_pending_ending.get("route", "balanced"))
+		})
+	return alpha23_pending_ending.duplicate(true)
+
+
+func alpha23_route_summary() -> String:
+	var dominant: String = str(alpha23_route_state.get("dominant", "balanced"))
+	var variant_label: String = str(alpha23_chapter_variant.get("label", "史勢未定"))
+	return "%s｜%s" % [Alpha23RouteResolver.ending_route_label(dominant), variant_label]
