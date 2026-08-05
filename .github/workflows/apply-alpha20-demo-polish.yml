@@ -58,8 +58,7 @@ jobs:
           from pathlib import Path
           text = Path('scripts/main.gd').read_text(encoding='utf-8')
           assert 'var choice: Dictionary = choice_value' not in text
-          assert 'choice_value is Dictionary' in text
-          assert 'choice_value is String or choice_value is StringName' in text
+          assert 'filtered.append(choice_value)' in text
           print('ALPHA20_LEVEL_CHOICE_TYPE_FIX_OK')
           PY
 
