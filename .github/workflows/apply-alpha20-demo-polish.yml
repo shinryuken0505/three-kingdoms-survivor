@@ -39,7 +39,11 @@ jobs:
       - name: Apply Alpha.20 demo polish
         run: |
           python tools/apply_alpha20_demo_polish.py
-          python tools/fix_alpha20_level_choice_types.py
+          if grep -q 'var choice: Dictionary = choice_value' scripts/main.gd; then
+            python tools/fix_alpha20_level_choice_types.py
+          else
+            echo "Alpha.20 level-choice type fix already applied"
+          fi
           python - <<'PY'
           from pathlib import Path
 
