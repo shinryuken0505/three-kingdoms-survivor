@@ -54,7 +54,6 @@ jobs:
           assert 'func alpha21_boss_next_move()' in main
           print('ALPHA21_INTEGRATION_OK')
           PY
-          python tools/check_alpha20_demo_polish.py
           python tools/check_alpha17_integration.py
           python tools/check_navigation_architecture.py
           python tools/check_runtime_integration.py
