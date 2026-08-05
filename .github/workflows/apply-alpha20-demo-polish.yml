@@ -39,6 +39,7 @@ jobs:
       - name: Apply Alpha.20 demo polish
         run: |
           python tools/apply_alpha20_demo_polish.py
+          python tools/fix_alpha20_level_choice_types.py
           python - <<'PY'
           from pathlib import Path
           path = Path('scripts/main.gd')
@@ -53,6 +54,14 @@ jobs:
           python tools/check_alpha17_integration.py
           python tools/check_navigation_architecture.py
           python tools/check_runtime_integration.py
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('scripts/main.gd').read_text(encoding='utf-8')
+          assert 'var choice: Dictionary = choice_value' not in text
+          assert 'choice_value is Dictionary' in text
+          assert 'choice_value is String or choice_value is StringName' in text
+          print('ALPHA20_LEVEL_CHOICE_TYPE_FIX_OK')
+          PY
 
       - name: Import and parse Godot project
         run: godot --headless --path . --editor --quit
@@ -73,10 +82,10 @@ jobs:
         run: |
           git config user.name "chatgpt-agent"
           git config user.email "chatgpt-agent@users.noreply.github.com"
-          git add scripts/main.gd scripts/systems/demo/alpha20_demo_director.gd scripts/systems/demo/alpha20_challenge_tracker.gd scripts/systems/demo/alpha20_demo_profile.gd tests/alpha20_demo_polish_test.gd docs/ALPHA20_DEMO_POLISH.md tools/check_alpha20_demo_polish.py
+          git add scripts/main.gd scripts/systems/demo/alpha20_demo_director.gd scripts/systems/demo/alpha20_challenge_tracker.gd scripts/systems/demo/alpha20_demo_profile.gd tests/alpha20_demo_polish_test.gd docs/ALPHA20_DEMO_POLISH.md tools/check_alpha20_demo_polish.py tools/fix_alpha20_level_choice_types.py
           if git diff --cached --quiet; then
             echo "No Alpha.20 changes to commit"
           else
-            git commit -m "feat: deliver V2.0.0 Alpha.20 demo polish"
+            git commit -m "fix: support string level choices in Alpha.20"
             git push origin feature/alpha20-demo-polish
           fi
