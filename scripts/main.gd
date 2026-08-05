@@ -11,12 +11,15 @@ const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rul
 const Alpha19HeroMastery = preload("res://scripts/systems/hero/alpha19_hero_mastery.gd")
 const Alpha19HistoryInfluence = preload("res://scripts/systems/world/alpha19_history_influence.gd")
 const Alpha19ChapterGimmicks = preload("res://scripts/systems/chapter/alpha19_chapter_gimmicks.gd")
+const Alpha20DemoDirector = preload("res://scripts/systems/demo/alpha20_demo_director.gd")
+const Alpha20ChallengeTracker = preload("res://scripts/systems/demo/alpha20_challenge_tracker.gd")
+const Alpha20DemoProfile = preload("res://scripts/systems/demo/alpha20_demo_profile.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.19"
+const GAME_VERSION: String = "V2.0.0-alpha.20"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -216,6 +219,12 @@ var alpha19_mastery_state: Dictionary = {}
 var alpha19_history_state: Dictionary = {}
 var alpha19_chapter_state: Dictionary = {}
 var alpha19_refresh_timer: float = 0.0
+var alpha20_director_state: Dictionary = {}
+var alpha20_challenge_state: Dictionary = {}
+var alpha20_demo_state: Dictionary = {}
+var alpha20_tick_timer: float = 0.0
+var alpha20_hazard_timer: float = 0.0
+var alpha20_last_kills: int = 0
 
 # 章節安全點／寶箱／遺物循環
 var camp_active: bool = false
@@ -933,6 +942,7 @@ func continue_run_from_checkpoint() -> void:
 
 
 func _process(delta: float) -> void:
+	alpha20_update(delta)
 	alpha19_update(delta)
 	if screen == "game":
 		frame_serial += 1
@@ -2772,7 +2782,7 @@ func perform_auto_attack() -> void:
 	var weapon_kind: String = str(player["weapon"])
 	var action_duration: float = 0.24 if weapon_kind == "blade" else 0.20
 	player_action_anim = {"kind": weapon_kind, "life": action_duration, "max_life": action_duration, "angle": dir.angle()}
-	var dmg: float = float(player["damage"]) * float(player.get("alpha19_damage_mult", 1.0)) * (1.0 + skill_level("damage") * 0.15) * (1.0 + relic_stat("damage_bonus"))
+	var dmg: float = float(player["damage"]) * float(player.get("alpha19_damage_mult", 1.0)) * float(player.get("alpha20_damage_mult", 1.0)) * (1.0 + skill_level("damage") * 0.15) * (1.0 + relic_stat("damage_bonus"))
 	match weapon_kind:
 		"blade":
 			play_combat_motif("slash", rng.randf_range(0.92, 1.02))
@@ -10032,6 +10042,7 @@ func alpha19_initialize_run() -> void:
 	alpha19_refresh_timer = 0.0
 	player["alpha19_damage_mult"] = 1.0
 	alpha19_refresh_progression()
+	alpha20_initialize_run()
 
 
 func alpha19_update(delta: float) -> void:
@@ -10085,6 +10096,7 @@ func alpha19_apply_chapter_setup() -> void:
 	var label: String = str(alpha19_chapter_state.get("label", ""))
 	if label != "":
 		show_message("章節機制｜%s" % label, 3.2)
+	alpha20_prepare_chapter()
 
 
 func alpha19_build_summary() -> String:
@@ -10092,3 +10104,113 @@ func alpha19_build_summary() -> String:
 		str(alpha19_build_state.get("name", "未定流派")),
 		str(alpha19_build_state.get("stage_name", "起步"))
 	]
+
+
+# Alpha.20: 關卡導演、章節挑戰與 Steam Demo 精修層。
+func alpha20_initialize_run() -> void:
+	alpha20_demo_state = Alpha20DemoProfile.new_run(chosen_mode, chosen_identity)
+	alpha20_director_state.clear()
+	alpha20_challenge_state.clear()
+	alpha20_tick_timer = 0.0
+	alpha20_hazard_timer = 0.0
+	alpha20_last_kills = int(run_stats.get("kills", 0))
+	alpha20_prepare_chapter()
+
+
+func alpha20_prepare_chapter() -> void:
+	if chapter_manager == null:
+		return
+	var chapter_id: String = str(current_chapter().get("id", ""))
+	alpha20_director_state = Alpha20DemoDirector.profile(chapter_id, chosen_mode)
+	alpha20_challenge_state = Alpha20ChallengeTracker.start_chapter(chapter_id, alpha20_director_state)
+	alpha20_hazard_timer = float(alpha20_director_state.get("hazard_interval", 24.0))
+	alpha20_last_kills = int(run_stats.get("kills", 0))
+	spawn_timer *= float(alpha20_director_state.get("opening_spawn_mult", 1.0))
+	merchant_spawn_timer *= float(alpha20_director_state.get("merchant_mult", 1.0))
+	hero_spawn_timer *= float(alpha20_director_state.get("hero_mult", 1.0))
+	var title: String = str(alpha20_director_state.get("title", ""))
+	var objective: String = str(alpha20_challenge_state.get("label", ""))
+	if title != "":
+		show_message("Alpha.20戰場｜%s\n挑戰：%s" % [title, objective], 4.2)
+
+
+func alpha20_update(delta: float) -> void:
+	if player.is_empty() or screen != "game":
+		return
+	alpha20_tick_timer -= delta
+	alpha20_hazard_timer -= delta
+	if alpha20_tick_timer <= 0.0:
+		alpha20_tick_timer = 0.25
+		alpha20_update_challenge()
+		alpha20_apply_adaptive_pressure()
+	if alpha20_hazard_timer <= 0.0:
+		alpha20_hazard_timer = Alpha20DemoDirector.next_hazard_interval(alpha20_director_state, performance_level)
+		alpha20_trigger_hazard()
+
+
+func alpha20_update_challenge() -> void:
+	if alpha20_challenge_state.is_empty():
+		return
+	var current_kills: int = int(run_stats.get("kills", 0))
+	var gained_kills: int = max(0, current_kills - alpha20_last_kills)
+	alpha20_last_kills = current_kills
+	var hp_ratio: float = float(player.get("hp", 0.0)) / max(1.0, float(player.get("max_hp", 1.0)))
+	alpha20_challenge_state = Alpha20ChallengeTracker.update(
+		alpha20_challenge_state,
+		delta_for_alpha20_tick(),
+		gained_kills,
+		hp_ratio,
+		boss_spawned
+	)
+	if bool(alpha20_challenge_state.get("just_completed", false)):
+		alpha20_challenge_state["just_completed"] = false
+		var reward: int = int(alpha20_challenge_state.get("reward_coins", 0))
+		player["coins"] = int(player.get("coins", 0)) + reward
+		player["shield"] = min(float(player.get("max_hp", 1.0)) * 0.35, float(player.get("shield", 0.0)) + float(reward) * 0.45)
+		show_message("章節挑戰完成！獲得%d銅錢與護盾。" % reward, 3.4)
+		play_sfx("levelup", 1.08)
+
+
+func delta_for_alpha20_tick() -> float:
+	return 0.25
+
+
+func alpha20_apply_adaptive_pressure() -> void:
+	if alpha20_director_state.is_empty():
+		return
+	var hp_ratio: float = float(player.get("hp", 0.0)) / max(1.0, float(player.get("max_hp", 1.0)))
+	var pressure: Dictionary = Alpha20DemoDirector.adaptive_pressure(alpha20_director_state, hp_ratio, performance_level, elapsed)
+	player["alpha20_damage_mult"] = float(pressure.get("player_damage_mult", 1.0))
+	if bool(pressure.get("force_wave", false)):
+		spawn_timer = min(spawn_timer, 0.08)
+
+
+func alpha20_trigger_hazard() -> void:
+	if alpha20_director_state.is_empty() or boss_spawned:
+		return
+	var hazard: Dictionary = Alpha20DemoDirector.pick_hazard(alpha20_director_state, rng.randi())
+	var hazard_id: String = str(hazard.get("id", "pressure_wave"))
+	match hazard_id:
+		"arrow_rain":
+			spawn_timer = min(spawn_timer, 0.05)
+			screen_shake = max(screen_shake, 4.5)
+		"fire_wind":
+			temporary_speed = max(temporary_speed, 2.5)
+			player["shield"] = max(0.0, float(player.get("shield", 0.0)) - 4.0)
+		"cavalry_charge":
+			spawn_timer = min(spawn_timer, -0.18)
+			screen_shake = max(screen_shake, 6.0)
+		"fog_of_war":
+			temporary_attack_speed = min(temporary_attack_speed, -0.12)
+		"supply_window":
+			player["coins"] = int(player.get("coins", 0)) + 12
+			player["shield"] = float(player.get("shield", 0.0)) + 8.0
+		_:
+			spawn_timer = min(spawn_timer, 0.12)
+	var label: String = str(hazard.get("label", "敵軍壓境"))
+	show_message("戰場變化｜%s" % label, 2.8)
+	play_sfx("boss_warning", 0.78)
+
+
+func alpha20_demo_summary() -> String:
+	return Alpha20DemoProfile.summary(alpha20_demo_state, alpha20_challenge_state, alpha20_director_state)
