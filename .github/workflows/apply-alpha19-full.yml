@@ -6,6 +6,9 @@ on:
       - feature/alpha19-full
     paths:
       - .github/workflows/apply-alpha19-full.yml
+  pull_request:
+    branches:
+      - feature/alpha19-full
   workflow_dispatch:
 
 permissions:
