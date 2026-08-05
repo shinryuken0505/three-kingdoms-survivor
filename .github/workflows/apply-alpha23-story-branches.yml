@@ -1,0 +1,93 @@
+name: Apply Alpha.23 Story Branches
+
+on:
+  push:
+    branches:
+      - feature/alpha23-story-branches
+    paths:
+      - .github/workflows/apply-alpha23-story-branches.yml
+      - tools/apply_alpha23_story_branches.py
+      - scripts/systems/story/alpha23_story_director.gd
+      - scripts/systems/story/alpha23_route_resolver.gd
+      - scripts/systems/ending/alpha23_ending_routes.gd
+      - tests/alpha23_story_branches_test.gd
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-alpha23-story-branches
+  cancel-in-progress: false
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Alpha.23 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha23-story-branches
+          fetch-depth: 0
+
+      - name: Install Godot 4.7.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Apply Alpha.23 story branches
+        run: python tools/apply_alpha23_story_branches.py
+
+      - name: Validate Alpha.23 integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          project = Path('project.godot').read_text(encoding='utf-8')
+          assert 'V2.0.0-alpha.23' in main
+          assert 'V2.0.0-alpha.23' in project
+          assert 'Alpha23StoryDirector' in main
+          assert 'Alpha23RouteResolver' in main
+          assert 'Alpha23EndingRoutes' in main
+          assert 'func alpha23_resolve_ending' in main
+          print('ALPHA23_INTEGRATION_OK')
+          PY
+          python tools/check_alpha17_integration.py
+          python tools/check_navigation_architecture.py
+          python tools/check_runtime_integration.py
+
+      - name: Import and parse Godot project
+        run: godot --headless --path . --editor --quit
+
+      - name: Run Alpha.23 story test
+        run: godot --headless --path . --script res://tests/alpha23_story_branches_test.gd
+
+      - name: Run Alpha.22 regression test
+        run: godot --headless --path . --script res://tests/alpha22_meta_progression_test.gd
+
+      - name: Run Alpha.21 regression test
+        run: godot --headless --path . --script res://tests/alpha21_combat_identity_test.gd
+
+      - name: Run Alpha.20 regression test
+        run: godot --headless --path . --script res://tests/alpha20_demo_polish_test.gd
+
+      - name: Run Alpha.19 regression test
+        run: godot --headless --path . --script res://tests/alpha19_rules_test.gd
+
+      - name: Run ending regression test
+        run: godot --headless --path . --script res://tests/ending_manager_test.gd
+
+      - name: Commit Alpha.23 runtime integration
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd project.godot
+          if git diff --cached --quiet; then
+            echo "No generated Alpha.23 changes to commit"
+          else
+            git commit -m "feat: integrate V2.0.0 Alpha.23 story branches"
+            git push origin feature/alpha23-story-branches
+          fi
