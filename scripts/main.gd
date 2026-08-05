@@ -17,12 +17,15 @@ const Alpha20DemoProfile = preload("res://scripts/systems/demo/alpha20_demo_prof
 const Alpha21CombatIdentity = preload("res://scripts/systems/combat/alpha21_combat_identity.gd")
 const Alpha21HeroSignatures = preload("res://scripts/systems/hero/alpha21_hero_signatures.gd")
 const Alpha21BossPatterns = preload("res://scripts/systems/boss/alpha21_boss_patterns.gd")
+const Alpha22MetaProgression = preload("res://scripts/systems/meta/alpha22_meta_progression.gd")
+const Alpha22Codex = preload("res://scripts/systems/meta/alpha22_codex.gd")
+const Alpha22Achievements = preload("res://scripts/systems/meta/alpha22_achievements.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.21"
+const GAME_VERSION: String = "V2.0.0-alpha.22"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -109,6 +112,9 @@ var save_data: Dictionary = {
 	"run_save": {},
 	"endings": {},
 	"latest_ending": {},
+	"meta_progression": {},
+	"codex": {},
+	"achievements": {},
 	"settings": {
 		"bgm": 0.70,
 		"sfx": 0.80,
@@ -231,6 +237,10 @@ var alpha20_last_kills: int = 0
 var alpha21_identity_state: Dictionary = {}
 var alpha21_boss_sequence: int = 0
 var alpha21_boss_phase: int = 1
+var alpha22_meta_state: Dictionary = {}
+var alpha22_codex_state: Dictionary = {}
+var alpha22_achievement_state: Dictionary = {}
+var alpha22_last_rewards: Array[String] = []
 
 # 章節安全點／寶箱／遺物循環
 var camp_active: bool = false
@@ -10236,6 +10246,7 @@ func alpha21_initialize_run() -> void:
 	alpha21_identity_state = Alpha21CombatIdentity.profile(chosen_identity)
 	alpha21_boss_sequence = 0
 	alpha21_boss_phase = 1
+	alpha22_initialize_profile()
 	var crit_bonus: float = Alpha21CombatIdentity.crit_bonus(chosen_identity)
 	player["alpha21_crit_bonus"] = crit_bonus
 	player["alpha21_dash_cd_mult"] = Alpha21CombatIdentity.dash_cooldown_multiplier(chosen_identity)
@@ -10243,7 +10254,7 @@ func alpha21_initialize_run() -> void:
 
 
 func alpha21_identity_damage_multiplier() -> float:
-	return Alpha21CombatIdentity.base_damage_multiplier(chosen_identity)
+	return Alpha21CombatIdentity.base_damage_multiplier(chosen_identity) * alpha22_legacy_damage_multiplier()
 
 
 func alpha21_contextual_damage_multiplier(distance: float, is_dot: bool = false, is_return_hit: bool = false) -> float:
@@ -10274,3 +10285,95 @@ func alpha21_boss_weakness_window(interrupted: bool = false) -> float:
 		return 0.0
 	var boss_id: String = str(boss.get("id", boss.get("key", "")))
 	return Alpha21BossPatterns.weakness_window(boss_id, interrupted)
+
+
+# Alpha.22：局外傳承、圖鑑、成就與永久解鎖。
+func alpha22_initialize_profile() -> void:
+	alpha22_meta_state = Alpha22MetaProgression.normalize(save_data.get("meta_progression", {}))
+	alpha22_codex_state = Alpha22Codex.normalize(save_data.get("codex", {}))
+	var achievements_raw: Variant = save_data.get("achievements", {})
+	alpha22_achievement_state = achievements_raw.duplicate(true) if achievements_raw is Dictionary else {}
+	alpha22_last_rewards.clear()
+	alpha22_apply_starting_bonuses()
+
+
+func alpha22_apply_starting_bonuses() -> void:
+	if player.is_empty():
+		return
+	var vitality: float = Alpha22MetaProgression.modifier(alpha22_meta_state, "vitality")
+	var fortune: float = Alpha22MetaProgression.modifier(alpha22_meta_state, "fortune")
+	var max_hp: float = float(player.get("max_hp", 1.0)) * (1.0 + vitality)
+	player["max_hp"] = max_hp
+	player["hp"] = min(max_hp, float(player.get("hp", max_hp)) * (1.0 + vitality))
+	player["alpha22_coin_bonus"] = fortune
+	player["alpha22_insight_bonus"] = Alpha22MetaProgression.modifier(alpha22_meta_state, "insight")
+
+
+func alpha22_legacy_damage_multiplier() -> float:
+	return 1.0 + Alpha22MetaProgression.modifier(alpha22_meta_state, "resolve")
+
+
+func alpha22_record_run_result(result: Dictionary) -> Dictionary:
+	alpha22_meta_state = Alpha22MetaProgression.award_for_run(alpha22_meta_state, result)
+	var completion: Dictionary = Alpha22Codex.completion(alpha22_codex_state, alpha22_codex_totals())
+	var metrics: Dictionary = {
+		"runs": int(alpha22_meta_state.get("lifetime_runs", 0)),
+		"kills": int(alpha22_meta_state.get("lifetime_kills", 0)),
+		"bosses": int(alpha22_meta_state.get("lifetime_bosses", 0)),
+		"chapter": int(alpha22_meta_state.get("best_chapter", 0)),
+		"codex_percent": int(round(float(completion.get("ratio", 0.0)) * 100.0)),
+	}
+	alpha22_achievement_state = Alpha22Achievements.evaluate(alpha22_achievement_state, metrics)
+	var reward: int = int(alpha22_achievement_state.get("reward_total", 0))
+	if reward > 0:
+		alpha22_meta_state["legacy_points"] = int(alpha22_meta_state.get("legacy_points", 0)) + reward
+	alpha22_last_rewards = alpha22_achievement_state.get("newly_unlocked", []).duplicate()
+	alpha22_achievement_state["reward_total"] = 0
+	alpha22_achievement_state["newly_unlocked"] = []
+	alpha22_commit_profile()
+	return {"legacy_earned":int(alpha22_meta_state.get("last_earned", 0)), "achievements":alpha22_last_rewards.duplicate()}
+
+
+func alpha22_discover(category: String, id: String, details: Dictionary = {}) -> void:
+	alpha22_codex_state = Alpha22Codex.discover(alpha22_codex_state, category, id, details)
+	alpha22_commit_profile()
+
+
+func alpha22_purchase_upgrade(id: String) -> bool:
+	var before: int = int(alpha22_meta_state.get("upgrades", {}).get(id, 0))
+	alpha22_meta_state = Alpha22MetaProgression.purchase(alpha22_meta_state, id)
+	var after: int = int(alpha22_meta_state.get("upgrades", {}).get(id, 0))
+	if after > before:
+		alpha22_commit_profile()
+		return true
+	return false
+
+
+func alpha22_commit_profile() -> void:
+	save_data["meta_progression"] = alpha22_meta_state.duplicate(true)
+	save_data["codex"] = alpha22_codex_state.duplicate(true)
+	save_data["achievements"] = alpha22_achievement_state.duplicate(true)
+
+
+func alpha22_codex_totals() -> Dictionary:
+	return {
+		"heroes": heroes.size(),
+		"bosses": 6,
+		"relics": relic_defs.size(),
+		"endings": 8,
+	}
+
+
+func alpha22_menu_entries() -> Array[String]:
+	return ["傳承", "圖鑑", "成就"]
+
+
+func alpha22_summary() -> String:
+	var completion: Dictionary = Alpha22Codex.completion(alpha22_codex_state, alpha22_codex_totals())
+	return "傳承點%d｜圖鑑%d/%d｜成就%d/%d" % [
+		int(alpha22_meta_state.get("legacy_points", 0)),
+		int(completion.get("found", 0)),
+		int(completion.get("total", 0)),
+		alpha22_achievement_state.get("unlocked", {}).size(),
+		Alpha22Achievements.DEFINITIONS.size(),
+	]
