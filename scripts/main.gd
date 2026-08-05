@@ -14,12 +14,15 @@ const Alpha19ChapterGimmicks = preload("res://scripts/systems/chapter/alpha19_ch
 const Alpha20DemoDirector = preload("res://scripts/systems/demo/alpha20_demo_director.gd")
 const Alpha20ChallengeTracker = preload("res://scripts/systems/demo/alpha20_challenge_tracker.gd")
 const Alpha20DemoProfile = preload("res://scripts/systems/demo/alpha20_demo_profile.gd")
+const Alpha21CombatIdentity = preload("res://scripts/systems/combat/alpha21_combat_identity.gd")
+const Alpha21HeroSignatures = preload("res://scripts/systems/hero/alpha21_hero_signatures.gd")
+const Alpha21BossPatterns = preload("res://scripts/systems/boss/alpha21_boss_patterns.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.20"
+const GAME_VERSION: String = "V2.0.0-alpha.21"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -225,6 +228,9 @@ var alpha20_demo_state: Dictionary = {}
 var alpha20_tick_timer: float = 0.0
 var alpha20_hazard_timer: float = 0.0
 var alpha20_last_kills: int = 0
+var alpha21_identity_state: Dictionary = {}
+var alpha21_boss_sequence: int = 0
+var alpha21_boss_phase: int = 1
 
 # 章節安全點／寶箱／遺物循環
 var camp_active: bool = false
@@ -2782,7 +2788,7 @@ func perform_auto_attack() -> void:
 	var weapon_kind: String = str(player["weapon"])
 	var action_duration: float = 0.24 if weapon_kind == "blade" else 0.20
 	player_action_anim = {"kind": weapon_kind, "life": action_duration, "max_life": action_duration, "angle": dir.angle()}
-	var dmg: float = float(player["damage"]) * float(player.get("alpha19_damage_mult", 1.0)) * float(player.get("alpha20_damage_mult", 1.0)) * (1.0 + skill_level("damage") * 0.15) * (1.0 + relic_stat("damage_bonus"))
+	var dmg: float = float(player["damage"]) * float(player.get("alpha19_damage_mult", 1.0)) * float(player.get("alpha20_damage_mult", 1.0)) * alpha21_identity_damage_multiplier() * (1.0 + skill_level("damage") * 0.15) * (1.0 + relic_stat("damage_bonus"))
 	match weapon_kind:
 		"blade":
 			play_combat_motif("slash", rng.randf_range(0.92, 1.02))
@@ -10123,6 +10129,7 @@ func alpha20_initialize_run() -> void:
 	alpha20_hazard_timer = 0.0
 	alpha20_last_kills = int(run_stats.get("kills", 0))
 	alpha20_prepare_chapter()
+	alpha21_initialize_run()
 
 
 func alpha20_prepare_chapter() -> void:
@@ -10222,3 +10229,48 @@ func alpha20_trigger_hazard() -> void:
 
 func alpha20_demo_summary() -> String:
 	return Alpha20DemoProfile.summary(alpha20_demo_state, alpha20_challenge_state, alpha20_director_state)
+
+
+# Alpha.21：主角戰鬥辨識、名將招牌技與 Boss 階段資料。
+func alpha21_initialize_run() -> void:
+	alpha21_identity_state = Alpha21CombatIdentity.profile(chosen_identity)
+	alpha21_boss_sequence = 0
+	alpha21_boss_phase = 1
+	var crit_bonus: float = Alpha21CombatIdentity.crit_bonus(chosen_identity)
+	player["alpha21_crit_bonus"] = crit_bonus
+	player["alpha21_dash_cd_mult"] = Alpha21CombatIdentity.dash_cooldown_multiplier(chosen_identity)
+	show_message("Alpha.21武魂｜%s" % Alpha21CombatIdentity.summary(chosen_identity), 4.0)
+
+
+func alpha21_identity_damage_multiplier() -> float:
+	return Alpha21CombatIdentity.base_damage_multiplier(chosen_identity)
+
+
+func alpha21_contextual_damage_multiplier(distance: float, is_dot: bool = false, is_return_hit: bool = false) -> float:
+	return Alpha21CombatIdentity.contextual_damage_multiplier(chosen_identity, distance, is_dot, is_return_hit)
+
+
+func alpha21_hero_signature(hero_id: String) -> Dictionary:
+	return Alpha21HeroSignatures.signature(hero_id)
+
+
+func alpha21_hero_cast_label(hero_id: String) -> String:
+	return Alpha21HeroSignatures.cast_label(hero_id, int(hero_levels.get(hero_id, 1)))
+
+
+func alpha21_boss_next_move() -> String:
+	if boss.is_empty():
+		return ""
+	var boss_id: String = str(boss.get("id", boss.get("key", "")))
+	var hp_ratio: float = float(boss.get("hp", 0.0)) / max(1.0, float(boss.get("max_hp", 1.0)))
+	alpha21_boss_phase = Alpha21BossPatterns.phase_for_hp(boss_id, hp_ratio)
+	var move_id: String = Alpha21BossPatterns.next_move(boss_id, alpha21_boss_sequence, hp_ratio)
+	alpha21_boss_sequence += 1
+	return move_id
+
+
+func alpha21_boss_weakness_window(interrupted: bool = false) -> float:
+	if boss.is_empty():
+		return 0.0
+	var boss_id: String = str(boss.get("id", boss.get("key", "")))
+	return Alpha21BossPatterns.weakness_window(boss_id, interrupted)
