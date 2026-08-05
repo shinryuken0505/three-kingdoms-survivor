@@ -1,0 +1,1 @@
+Alpha.24 protagonist selection loads assets/portraits/<id>_default.png. Premium portraits must replace those runtime paths directly.
