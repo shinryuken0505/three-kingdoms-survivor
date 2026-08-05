@@ -1,0 +1,93 @@
+name: Apply Alpha.24 Steam Demo
+
+on:
+  push:
+    branches:
+      - feature/alpha24-steam-demo
+    paths:
+      - .github/workflows/apply-alpha24-steam-demo.yml
+      - tools/apply_alpha24_steam_demo.py
+      - scripts/systems/demo/alpha24_steam_demo.gd
+      - tests/alpha24_steam_demo_test.gd
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-alpha24-steam-demo
+  cancel-in-progress: false
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Alpha.24 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha24-steam-demo
+          fetch-depth: 0
+
+      - name: Install Godot 4.7.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Apply Alpha.24 Steam Demo
+        run: python tools/apply_alpha24_steam_demo.py
+
+      - name: Validate Alpha.24 integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          project = Path('project.godot').read_text(encoding='utf-8')
+          assert 'V2.0.0-alpha.24' in main
+          assert 'V2.0.0-alpha.24' in project
+          assert 'Alpha24SteamDemo' in main
+          assert 'func alpha24_update_release_guard' in main
+          assert 'func alpha24_complete_demo' in main
+          print('ALPHA24_INTEGRATION_OK')
+          PY
+          python tools/check_alpha17_integration.py
+          python tools/check_navigation_architecture.py
+          python tools/check_runtime_integration.py
+
+      - name: Import and parse Godot project
+        run: godot --headless --path . --editor --quit
+
+      - name: Run Alpha.24 Steam Demo test
+        run: godot --headless --path . --script res://tests/alpha24_steam_demo_test.gd
+
+      - name: Run Alpha.23 regression test
+        run: godot --headless --path . --script res://tests/alpha23_story_branches_test.gd
+
+      - name: Run Alpha.22 regression test
+        run: godot --headless --path . --script res://tests/alpha22_meta_progression_test.gd
+
+      - name: Run Alpha.21 regression test
+        run: godot --headless --path . --script res://tests/alpha21_combat_identity_test.gd
+
+      - name: Run Alpha.20 regression test
+        run: godot --headless --path . --script res://tests/alpha20_demo_polish_test.gd
+
+      - name: Run Alpha.19 regression test
+        run: godot --headless --path . --script res://tests/alpha19_rules_test.gd
+
+      - name: Run ending regression test
+        run: godot --headless --path . --script res://tests/ending_manager_test.gd
+
+      - name: Commit Alpha.24 runtime integration
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd project.godot
+          if git diff --cached --quiet; then
+            echo "No generated Alpha.24 changes to commit"
+          else
+            git commit -m "feat: integrate V2.0.0 Alpha.24 Steam Demo"
+            git push origin feature/alpha24-steam-demo
+          fi
