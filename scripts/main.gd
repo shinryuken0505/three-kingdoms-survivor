@@ -415,6 +415,7 @@ func load_assets() -> void:
 	for id in boss_ids:
 		portrait_tex[id] = runtime_texture("res://assets/portraits/%s_default.png" % id)
 		sprite_tex[id] = runtime_texture("res://assets/sprites/%s_default.png" % id)
+	apply_character_art_fallbacks()
 	for id in [
 		"enemy_peasant",
 		"enemy_sword",
@@ -1325,28 +1326,31 @@ func intermission_options() -> Array[String]:
 
 func handle_shop_navigation(key: int) -> bool:
 	var item_count: int = shop_choices.size()
-	var total_count: int = item_count + 1
+	var total_count: int = item_count + 2
 	if total_count <= 0:
 		return false
 	var columns: int = 2
-	var leave_index: int = item_count
-	# 商品採雙欄；最後的「離開」視為獨立整列。上下移動會優先保持原欄位。
+	var equipment_index: int = item_count
+	var leave_index: int = item_count + 1
+	# 商品採雙欄；底部提供「裝備整備」與「離開行商」兩個固定操作。
 	if is_left_key(key):
-		if option_index == leave_index:
+		if option_index >= equipment_index:
 			option_index = max(0, item_count - 1)
 		else:
 			option_index = max(0, option_index - 1)
 		play_sfx("ui_move")
 		return true
 	if is_right_key(key):
-		if option_index == leave_index:
-			option_index = min(1, max(0, item_count - 1))
+		if option_index == equipment_index:
+			option_index = leave_index
+		elif option_index == leave_index:
+			option_index = equipment_index
 		else:
 			option_index = min(item_count - 1, option_index + 1)
 		play_sfx("ui_move")
 		return true
 	if is_up_key(key):
-		if option_index == leave_index:
+		if option_index >= equipment_index:
 			var last_row_start: int = max(0, item_count - (2 if item_count % 2 == 0 else 1))
 			option_index = last_row_start
 		else:
@@ -1354,10 +1358,10 @@ func handle_shop_navigation(key: int) -> bool:
 		play_sfx("ui_move")
 		return true
 	if is_down_key(key):
-		if option_index == leave_index:
+		if option_index >= equipment_index:
 			return true
 		var next_index: int = option_index + columns
-		option_index = next_index if next_index < item_count else leave_index
+		option_index = next_index if next_index < item_count else equipment_index
 		play_sfx("ui_move")
 		return true
 	return false
@@ -1372,7 +1376,7 @@ func handle_option_screen_key(key: int) -> void:
 		"hero_encounter":
 			count = 3
 		"shop":
-			count = shop_choices.size() + 1
+			count = shop_choices.size() + 2
 		"replace_hero":
 			count = active_heroes.size() + 1
 		"game_over", "victory", "ending":
@@ -2274,6 +2278,23 @@ func start_run(mode: String, identity_id: String) -> void:
 	play_bgm("intro")
 
 
+func apply_character_art_fallbacks() -> void:
+	# 部分早期立繪檔實際為其他角色的複本。優先使用本輪由小人重製的角色卡，
+	# 並在缺圖時退回同 ID 小人，避免名稱、Boss 與圖像錯位。
+	var fallback_ids: Array[String] = [
+		"huangzhong", "huatuo", "fazheng", "chengong", "simayi", "caocao",
+		"taishici", "luxun", "zhouyu", "sunjian", "xiahouyuan", "xiahouen",
+		"zhangfei", "weiyan", "zhanghe", "jiangwei", "zhangliao", "caoren"
+	]
+	for character_id in fallback_ids:
+		var remastered_path: String = "res://assets/portraits_remastered/%s_default.png" % character_id
+		var remastered: Texture2D = runtime_texture(remastered_path)
+		if remastered != null:
+			portrait_tex[character_id] = remastered
+		elif sprite_tex.has(character_id) and sprite_tex[character_id] != null:
+			portrait_tex[character_id] = sprite_tex[character_id]
+
+
 func refresh_all_skins() -> void:
 	for hid in skin_defs:
 		refresh_skin_asset(hid)
@@ -2751,11 +2772,13 @@ func perform_auto_attack() -> void:
 					"pos": attack_origin + dir * 14.0,
 					"angle": dir.angle(),
 					"r": 122.0,
-					"life": 0.22,
-					"max_life": 0.22,
-					"color": Color8(244, 211, 126)
+					"life": 0.34,
+					"max_life": 0.34,
+					"color": Color8(255, 224, 132)
 				}
 			)
+			spawn_ring(attack_origin + dir * 24.0, Color8(255, 226, 145), 46.0, 0.24)
+			screen_shake = max(screen_shake, 3.2)
 		"bow":
 			play_combat_motif("arrow", rng.randf_range(0.94, 1.02))
 			var count: int = 1 + int(player["multishot"])
@@ -3587,6 +3610,18 @@ func build_bonus_description() -> String:
 	return "%s（%s）" % [base, build_resonance_stage_name(stage)]
 
 
+func emphasize_damage_number(entry: Dictionary) -> Dictionary:
+	var result: Dictionary = entry.duplicate(true)
+	var raw_text: String = str(result.get("text", "0"))
+	var numeric_text: String = raw_text.replace("!", "").replace("+", "").replace("-", "")
+	var amount: float = float(numeric_text) if numeric_text.is_valid_float() else 0.0
+	var critical: bool = raw_text.contains("!")
+	result["life"] = max(float(result.get("life", 0.72)), 0.92 if critical else 0.78)
+	result["size"] = max(float(result.get("size", 18.0)), 29.0 if critical else (24.0 if amount >= 40.0 else 20.0))
+	result["outline"] = max(float(result.get("outline", 2.0)), 4.0 if critical else 3.0)
+	return result
+
+
 func add_damage_number(entry: Dictionary) -> void:
 	if not damage_numbers_enabled():
 		return
@@ -3599,7 +3634,7 @@ func add_damage_number(entry: Dictionary) -> void:
 			return
 	if damage_numbers.size() >= MAX_DAMAGE_NUMBERS:
 		fast_remove_at(damage_numbers, 0)
-	damage_numbers.append(entry)
+	damage_numbers.append(emphasize_damage_number(entry))
 
 
 func can_spawn_visual_zone() -> bool:
@@ -6154,7 +6189,16 @@ func open_shop() -> void:
 
 
 func choose_shop(index: int) -> void:
-	if index >= shop_choices.size():
+	var item_count: int = shop_choices.size()
+	if index == item_count:
+		previous_screen = "shop"
+		screen = "tab"
+		tab_page = 1
+		tab_index = 0
+		tab_scroll = 0
+		play_sfx("ui_confirm")
+		return
+	if index > item_count:
 		screen = "game"
 		play_current_battle_bgm()
 		return
@@ -6174,13 +6218,16 @@ func choose_shop(index: int) -> void:
 	else:
 		grant_relic(str(item["id"]), "行商購入", true)
 	merchant_visit += 1
-	merchant_active = false
-	merchant_stock.clear()
-	merchant_equipment_stock.clear()
-	merchant_spawn_timer = rng.randf_range(65.0, 88.0)
-	screen = "game"
-	play_current_battle_bgm()
-	show_message("%s收拾貨物，前往下一處落腳。" % str(merchant_defs.get(merchant_kind, {}).get("name", "商人")), 2.5)
+	var purchased_id: String = str(item.get("id", ""))
+	if str(item.get("type", "relic")) == "equipment":
+		merchant_equipment_stock.erase(purchased_id)
+	else:
+		merchant_stock.erase(purchased_id)
+	shop_choices.remove_at(index)
+	option_index = clampi(index, 0, shop_choices.size() + 1)
+	screen = "shop"
+	play_bgm("merchant")
+	show_message("交易完成，可繼續選購或前往裝備整備。", 2.4)
 
 
 func open_levelup() -> void:
