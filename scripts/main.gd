@@ -10077,10 +10077,18 @@ func alpha19_filter_level_choices() -> void:
 		return
 	var filtered: Array = []
 	for choice_value in level_choices:
-		var choice: Dictionary = choice_value
-		var skill_id: String = str(choice.get("id", choice.get("skill", "")))
+		var skill_id: String = ""
+		if choice_value is Dictionary:
+			var choice: Dictionary = choice_value
+			skill_id = str(choice.get("id", choice.get("skill", "")))
+		elif choice_value is String or choice_value is StringName:
+			skill_id = str(choice_value)
+		else:
+			# 未知格式不應讓升級畫面當機；保留選項交由原流程處理。
+			filtered.append(choice_value)
+			continue
 		if Alpha19BuildRules.skill_allowed(str(player.get("weapon", "blade")), skill_id, skill_levels):
-			filtered.append(choice)
+			filtered.append(choice_value)
 	if filtered.size() >= 2:
 		level_choices = filtered
 	option_index = clampi(option_index, 0, max(0, level_choices.size() - 1))
