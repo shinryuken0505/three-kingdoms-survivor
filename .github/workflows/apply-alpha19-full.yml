@@ -1,0 +1,68 @@
+name: Apply Alpha.19 Full Edition
+
+on:
+  push:
+    branches:
+      - feature/alpha19-full
+    paths:
+      - .github/workflows/apply-alpha19-full.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-alpha19-full
+  cancel-in-progress: false
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Alpha.19 branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/alpha19-full
+          fetch-depth: 0
+
+      - name: Install Godot 4.7.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Apply Alpha.19 full patch
+        run: python tools/apply_alpha19_full_patch.py
+
+      - name: Run Alpha.19 structural checks
+        run: |
+          python tools/check_alpha19_full.py
+          python tools/check_alpha17_integration.py
+          python tools/check_navigation_architecture.py
+          python tools/check_runtime_integration.py
+
+      - name: Import and parse Godot project
+        run: godot --headless --path . --editor --quit
+
+      - name: Run Alpha.19 rules test
+        run: godot --headless --path . --script res://tests/alpha19_rules_test.gd
+
+      - name: Run existing ending test
+        run: godot --headless --path . --script res://tests/ending_manager_test.gd
+
+      - name: Run existing integration smoke test
+        run: godot --headless --path . --script res://tests/alpha17_integration_smoke_test.gd
+
+      - name: Commit Alpha.19 full edition
+        run: |
+          git config user.name "chatgpt-agent"
+          git config user.email "chatgpt-agent@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/build/alpha19_build_rules.gd scripts/systems/hero/alpha19_hero_mastery.gd scripts/systems/world/alpha19_history_influence.gd scripts/systems/chapter/alpha19_chapter_gimmicks.gd tests/alpha19_rules_test.gd tools/check_alpha19_full.py docs/ALPHA19_FULL_EDITION.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.19 changes to commit"
+          else
+            git commit -m "feat: deliver V2.0.0 Alpha.19 full edition"
+            git push origin feature/alpha19-full
+          fi
