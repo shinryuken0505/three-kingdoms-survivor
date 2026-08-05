@@ -90,6 +90,11 @@ static func chapter_variant(chapter_id: String, state: Dictionary) -> Dictionary
 			result["label"] = ending_route_label(dominant)
 	return result
 
+# Alpha.24 compatibility alias. Keep route_label available for callers that
+# need a general route display label, while Alpha.23 retains the original API.
+static func route_label(route_id: String) -> String:
+	return ending_route_label(route_id)
+
 static func ending_route_label(route_id: String) -> String:
 	match route_id:
 		"benevolence": return "仁者之世"
