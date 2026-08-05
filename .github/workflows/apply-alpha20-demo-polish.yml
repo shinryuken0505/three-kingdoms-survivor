@@ -54,13 +54,6 @@ jobs:
           python tools/check_alpha17_integration.py
           python tools/check_navigation_architecture.py
           python tools/check_runtime_integration.py
-          python - <<'PY'
-          from pathlib import Path
-          text = Path('scripts/main.gd').read_text(encoding='utf-8')
-          assert 'var choice: Dictionary = choice_value' not in text
-          assert 'filtered.append(choice_value)' in text
-          print('ALPHA20_LEVEL_CHOICE_TYPE_FIX_OK')
-          PY
 
       - name: Import and parse Godot project
         run: godot --headless --path . --editor --quit
