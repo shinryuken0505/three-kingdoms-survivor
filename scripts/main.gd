@@ -7,12 +7,16 @@ const ChapterManagerScript = preload("res://scripts/chapter_manager.gd")
 const HistoryEventData = preload("res://scripts/history_event_data.gd")
 const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rules.gd")
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
+const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rules.gd")
+const Alpha19HeroMastery = preload("res://scripts/systems/hero/alpha19_hero_mastery.gd")
+const Alpha19HistoryInfluence = preload("res://scripts/systems/world/alpha19_history_influence.gd")
+const Alpha19ChapterGimmicks = preload("res://scripts/systems/chapter/alpha19_chapter_gimmicks.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.17"
+const GAME_VERSION: String = "V2.0.0-alpha.19"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -207,6 +211,11 @@ var chapter_clear_snapshot: Dictionary = {}
 var pending_run_result: int = 0  # 1=勝利，-1=失敗；統一在更新階段安全結算
 var ending_snapshot: Dictionary = {}
 var ending_committed: bool = false
+var alpha19_build_state: Dictionary = {}
+var alpha19_mastery_state: Dictionary = {}
+var alpha19_history_state: Dictionary = {}
+var alpha19_chapter_state: Dictionary = {}
+var alpha19_refresh_timer: float = 0.0
 
 # 章節安全點／寶箱／遺物循環
 var camp_active: bool = false
@@ -924,6 +933,7 @@ func continue_run_from_checkpoint() -> void:
 
 
 func _process(delta: float) -> void:
+	alpha19_update(delta)
 	if screen == "game":
 		frame_serial += 1
 		update_frame_metrics(delta)
@@ -1582,6 +1592,7 @@ func reset_chapter_runtime() -> void:
 	for hid in active_heroes:
 		hero_cooldowns[hid] = 0.0
 	update_bonds()
+	alpha19_apply_chapter_setup()
 	generate_world()
 
 
@@ -2248,6 +2259,7 @@ func start_run(mode: String, identity_id: String) -> void:
 		player["dash_cd"] = 3.8
 	else:
 		player["armor"] = 1.0
+	alpha19_initialize_run()
 	generate_world()
 	hero_spawn_timer = 20.0 if mode == "story" else 12.0
 	merchant_spawn_timer = float(
@@ -2760,7 +2772,7 @@ func perform_auto_attack() -> void:
 	var weapon_kind: String = str(player["weapon"])
 	var action_duration: float = 0.24 if weapon_kind == "blade" else 0.20
 	player_action_anim = {"kind": weapon_kind, "life": action_duration, "max_life": action_duration, "angle": dir.angle()}
-	var dmg: float = float(player["damage"]) * (1.0 + skill_level("damage") * 0.15) * (1.0 + relic_stat("damage_bonus"))
+	var dmg: float = float(player["damage"]) * float(player.get("alpha19_damage_mult", 1.0)) * (1.0 + skill_level("damage") * 0.15) * (1.0 + relic_stat("damage_bonus"))
 	match weapon_kind:
 		"blade":
 			play_combat_motif("slash", rng.randf_range(0.92, 1.02))
@@ -6268,6 +6280,7 @@ func open_levelup() -> void:
 		return
 	option_index = 0
 	previous_screen = "game"
+	alpha19_filter_level_choices()
 	screen = "levelup"
 	modal_input_lock_until_ms = Time.get_ticks_msec() + 140
 	play_sfx("levelup")
@@ -10008,3 +10021,74 @@ func bond_names(ids: Array) -> Array:
 		if bond_defs.has(bid):
 			names.append(bond_defs[bid]["name"])
 	return names
+
+
+# Alpha.19: Build、名將大成、史勢與章節特色整合層。
+func alpha19_initialize_run() -> void:
+	alpha19_build_state = Alpha19BuildRules.evaluate(chosen_identity, str(player.get("weapon", "blade")), skill_levels, relics)
+	alpha19_mastery_state.clear()
+	alpha19_history_state = Alpha19HistoryInfluence.evaluate(history_flags, history_route_tags, faction_momentum, history_rewrite_rate)
+	alpha19_chapter_state = Alpha19ChapterGimmicks.for_chapter(str(current_chapter().get("id", "")))
+	alpha19_refresh_timer = 0.0
+	player["alpha19_damage_mult"] = 1.0
+	alpha19_refresh_progression()
+
+
+func alpha19_update(delta: float) -> void:
+	if player.is_empty() or screen not in ["game", "shop", "tab", "hero_config", "camp_menu"]:
+		return
+	alpha19_refresh_timer -= delta
+	if alpha19_refresh_timer > 0.0:
+		return
+	alpha19_refresh_timer = 0.35
+	alpha19_refresh_progression()
+
+
+func alpha19_refresh_progression() -> void:
+	alpha19_build_state = Alpha19BuildRules.evaluate(chosen_identity, str(player.get("weapon", "blade")), skill_levels, relics)
+	alpha19_mastery_state = Alpha19HeroMastery.evaluate(active_heroes, reserve_heroes, hero_bond_levels)
+	alpha19_history_state = Alpha19HistoryInfluence.evaluate(history_flags, history_route_tags, faction_momentum, history_rewrite_rate)
+	var build_damage: float = float(alpha19_build_state.get("damage_mult", 1.0))
+	var mastery_damage: float = float(alpha19_mastery_state.get("damage_mult", 1.0))
+	var history_damage: float = float(alpha19_history_state.get("damage_mult", 1.0))
+	player["alpha19_damage_mult"] = build_damage * mastery_damage * history_damage
+	player["hero_cd_mult"] = clamp(
+		float(alpha19_build_state.get("hero_cd_mult", 1.0))
+		* float(alpha19_mastery_state.get("hero_cd_mult", 1.0)),
+		0.55,
+		1.0
+	)
+	player["control_resist"] = max(float(player.get("control_resist", 0.0)), float(alpha19_mastery_state.get("control_resist", 0.0)))
+
+
+func alpha19_filter_level_choices() -> void:
+	if level_choices.is_empty():
+		return
+	var filtered: Array = []
+	for choice_value in level_choices:
+		var choice: Dictionary = choice_value
+		var skill_id: String = str(choice.get("id", choice.get("skill", "")))
+		if Alpha19BuildRules.skill_allowed(str(player.get("weapon", "blade")), skill_id, skill_levels):
+			filtered.append(choice)
+	if filtered.size() >= 2:
+		level_choices = filtered
+	option_index = clampi(option_index, 0, max(0, level_choices.size() - 1))
+
+
+func alpha19_apply_chapter_setup() -> void:
+	alpha19_history_state = Alpha19HistoryInfluence.evaluate(history_flags, history_route_tags, faction_momentum, history_rewrite_rate)
+	alpha19_chapter_state = Alpha19ChapterGimmicks.for_chapter(str(current_chapter().get("id", "")))
+	merchant_spawn_timer *= float(alpha19_chapter_state.get("merchant_time_mult", 1.0))
+	hero_spawn_timer *= float(alpha19_chapter_state.get("hero_time_mult", 1.0))
+	var history_merchant: float = float(alpha19_history_state.get("merchant_time_mult", 1.0))
+	merchant_spawn_timer *= history_merchant
+	var label: String = str(alpha19_chapter_state.get("label", ""))
+	if label != "":
+		show_message("章節機制｜%s" % label, 3.2)
+
+
+func alpha19_build_summary() -> String:
+	return "%s・%s" % [
+		str(alpha19_build_state.get("name", "未定流派")),
+		str(alpha19_build_state.get("stage_name", "起步"))
+	]
