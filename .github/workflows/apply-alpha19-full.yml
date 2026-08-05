@@ -59,7 +59,8 @@ jobs:
         run: |
           git config user.name "chatgpt-agent"
           git config user.email "chatgpt-agent@users.noreply.github.com"
-          git add scripts/main.gd scripts/systems/build/alpha19_build_rules.gd scripts/systems/hero/alpha19_hero_mastery.gd scripts/systems/world/alpha19_history_influence.gd scripts/systems/chapter/alpha19_chapter_gimmicks.gd tests/alpha19_rules_test.gd tools/check_alpha19_full.py docs/ALPHA19_FULL_EDITION.md
+          git add scripts/main.gd scripts/systems/hero/alpha19_hero_mastery.gd scripts/systems/world/alpha19_history_influence.gd scripts/systems/chapter/alpha19_chapter_gimmicks.gd tests/alpha19_rules_test.gd tools/check_alpha19_full.py docs/ALPHA19_FULL_EDITION.md
+          git add -f scripts/systems/build/alpha19_build_rules.gd
           if git diff --cached --quiet; then
             echo "No Alpha.19 changes to commit"
           else
