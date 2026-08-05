@@ -23,12 +23,13 @@ const Alpha22Achievements = preload("res://scripts/systems/meta/alpha22_achievem
 const Alpha23StoryDirector = preload("res://scripts/systems/story/alpha23_story_director.gd")
 const Alpha23RouteResolver = preload("res://scripts/systems/story/alpha23_route_resolver.gd")
 const Alpha23EndingRoutes = preload("res://scripts/systems/ending/alpha23_ending_routes.gd")
+const Alpha24SteamDemo = preload("res://scripts/systems/demo/alpha24_steam_demo.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.23"
+const GAME_VERSION: String = "V2.0.0-alpha.24"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -249,6 +250,9 @@ var alpha23_route_state: Dictionary = {}
 var alpha23_story_scene: Dictionary = {}
 var alpha23_chapter_variant: Dictionary = {}
 var alpha23_pending_ending: Dictionary = {}
+var alpha24_demo_state: Dictionary = {}
+var alpha24_quality_profile: Dictionary = {}
+var alpha24_frame_sample_timer: float = 0.0
 
 # 章節安全點／寶箱／遺物循環
 var camp_active: bool = false
@@ -966,6 +970,7 @@ func continue_run_from_checkpoint() -> void:
 
 
 func _process(delta: float) -> void:
+	alpha24_update_release_guard(delta)
 	alpha20_update(delta)
 	alpha19_update(delta)
 	if screen == "game":
@@ -10390,6 +10395,7 @@ func alpha22_summary() -> String:
 
 # Alpha.23：章節故事、歷史路線、關卡變體與多結局。
 func alpha23_initialize_story() -> void:
+	alpha24_initialize_demo()
 	var raw: Variant = save_data.get("story_routes", {})
 	alpha23_route_state = raw.duplicate(true) if raw is Dictionary and not raw.is_empty() else Alpha23RouteResolver.new_state()
 	alpha23_story_scene.clear()
@@ -10433,3 +10439,85 @@ func alpha23_route_summary() -> String:
 	var dominant: String = str(alpha23_route_state.get("dominant", "balanced"))
 	var variant_label: String = str(alpha23_chapter_variant.get("label", "史勢未定"))
 	return "%s｜%s" % [Alpha23RouteResolver.ending_route_label(dominant), variant_label]
+
+
+# Alpha.24：Steam Demo 封版、教學、效能降載與完成提示。
+func alpha24_initialize_demo() -> void:
+	var stored: Variant = save_data.get("alpha24_demo", {})
+	alpha24_demo_state = Alpha24SteamDemo.normalize(stored)
+	alpha24_quality_profile = Alpha24SteamDemo.quality_profile(str(alpha24_demo_state.get("quality", "high")))
+	alpha24_frame_sample_timer = 0.0
+
+
+func alpha24_tutorial_event(event_id: String, amount: float = 1.0) -> void:
+	var before: int = int(alpha24_demo_state.get("tutorial_index", 0))
+	alpha24_demo_state = Alpha24SteamDemo.advance_tutorial(alpha24_demo_state, event_id, amount)
+	var after: int = int(alpha24_demo_state.get("tutorial_index", 0))
+	if after > before:
+		var next_step: Dictionary = Alpha24SteamDemo.current_tutorial(alpha24_demo_state)
+		if next_step.is_empty():
+			show_message("新手教學完成！亂世之路由你開創。", 3.5)
+		else:
+			show_message("教學｜%s" % str(next_step.get("label", "")), 3.2)
+	alpha24_commit_demo_state()
+
+
+func alpha24_current_tutorial_label() -> String:
+	var step: Dictionary = Alpha24SteamDemo.current_tutorial(alpha24_demo_state)
+	return str(step.get("label", ""))
+
+
+func alpha24_story_chapter_allowed(chapter_number: int) -> bool:
+	return Alpha24SteamDemo.demo_chapter_allowed(chosen_mode, chapter_number)
+
+
+func alpha24_complete_demo() -> String:
+	alpha24_demo_state["demo_completed"] = true
+	alpha24_commit_demo_state()
+	var route_name: String = Alpha23RouteResolver.route_label(str(alpha23_route_state.get("dominant", "")))
+	var ending_title: String = str(alpha23_pending_ending.get("title", ""))
+	return Alpha24SteamDemo.completion_message(route_name, ending_title)
+
+
+func alpha24_update_release_guard(delta: float) -> void:
+	alpha24_frame_sample_timer -= delta
+	if alpha24_frame_sample_timer > 0.0:
+		return
+	alpha24_frame_sample_timer = 1.0
+	var frame_ms: float = frame_time_ema * 1000.0
+	var current_quality: String = str(alpha24_demo_state.get("quality", "high"))
+	var next_quality: String = Alpha24SteamDemo.quality_for_frame_time(frame_ms, current_quality)
+	if next_quality != current_quality:
+		alpha24_demo_state["quality"] = next_quality
+		alpha24_quality_profile = Alpha24SteamDemo.quality_profile(next_quality)
+		alpha24_commit_demo_state()
+	alpha24_apply_quality_caps()
+
+
+func alpha24_apply_quality_caps() -> void:
+	var enemy_cap: int = int(alpha24_quality_profile.get("enemy_cap", MAX_PICKUPS))
+	var particle_cap: int = int(alpha24_quality_profile.get("particle_cap", MAX_PARTICLES))
+	var shot_cap: int = int(alpha24_quality_profile.get("shot_cap", MAX_PLAYER_SHOTS))
+	var number_cap: int = int(alpha24_quality_profile.get("damage_number_cap", MAX_DAMAGE_NUMBERS))
+	if enemies.size() > enemy_cap:
+		enemies.resize(enemy_cap)
+	if particles.size() > particle_cap:
+		particles.resize(particle_cap)
+	if player_shots.size() > shot_cap:
+		player_shots.resize(shot_cap)
+	if damage_numbers.size() > number_cap:
+		damage_numbers.resize(number_cap)
+
+
+func alpha24_commit_demo_state() -> void:
+	save_data["alpha24_demo"] = alpha24_demo_state.duplicate(true)
+
+
+func alpha24_release_readiness() -> Dictionary:
+	return Alpha24SteamDemo.release_readiness(
+		GAME_VERSION,
+		SAVE_FORMAT_VERSION >= 4,
+		bool(alpha24_demo_state.get("tutorial_done", false)),
+		startup_checks.filter(func(value: String) -> bool: return value.find("ERROR") >= 0).size(),
+		asset_errors.size()
+	)

@@ -4,7 +4,7 @@
 config_version=5
 
 [application]
-config/name="三國人生錄：亂世倖存 V2.0.0-alpha.23"
+config/name="三國人生錄：亂世倖存 V2.0.0-alpha.24"
 run/main_scene="res://main.tscn"
 config/icon="res://assets/icon.png"
 config/features=PackedStringArray("4.7", "GL Compatibility")
