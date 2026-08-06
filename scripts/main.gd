@@ -24,12 +24,13 @@ const Alpha23StoryDirector = preload("res://scripts/systems/story/alpha23_story_
 const Alpha23RouteResolver = preload("res://scripts/systems/story/alpha23_route_resolver.gd")
 const Alpha23EndingRoutes = preload("res://scripts/systems/ending/alpha23_ending_routes.gd")
 const Alpha24SteamDemo = preload("res://scripts/systems/demo/alpha24_steam_demo.gd")
+const Alpha27ActionProfiles = preload("res://scripts/systems/combat/alpha27_action_profiles.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.25"
+const GAME_VERSION: String = "V2.0.0-alpha.27"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -2809,8 +2810,17 @@ func perform_auto_attack() -> void:
 	var dir: Vector2 = (target - player["pos"]).normalized()
 	player["facing"] = dir
 	var weapon_kind: String = str(player["weapon"])
-	var action_duration: float = 0.24 if weapon_kind == "blade" else 0.20
-	player_action_anim = {"kind": weapon_kind, "life": action_duration, "max_life": action_duration, "angle": dir.angle()}
+	var action_profile: Dictionary = Alpha27ActionProfiles.player_profile(weapon_kind)
+	var action_duration: float = float(action_profile.get("duration", 0.46))
+	player_action_anim = {
+		"kind": weapon_kind,
+		"life": action_duration,
+		"max_life": action_duration,
+		"angle": dir.angle(),
+		"windup": float(action_profile.get("windup", 0.25)),
+		"active": float(action_profile.get("active", 0.40)),
+		"recover": float(action_profile.get("recover", 0.35))
+	}
 	var dmg: float = float(player["damage"]) * float(player.get("alpha19_damage_mult", 1.0)) * float(player.get("alpha20_damage_mult", 1.0)) * alpha21_identity_damage_multiplier() * (1.0 + skill_level("damage") * 0.15) * (1.0 + relic_stat("damage_bonus"))
 	match weapon_kind:
 		"blade":
@@ -3914,7 +3924,7 @@ func hero_role(hid: String) -> String:
 
 func spawn_hero_signature_effect(hid: String, center: Vector2, dir: Vector2, lv: int) -> void:
 	if not can_spawn_visual_zone():
-		hero_cast_flash = {"id": hid, "life": 1.0, "max_life": 1.0, "pos": center}
+		hero_cast_flash = {"id": hid, "life": Alpha27ActionProfiles.hero_cast_duration(hid), "max_life": Alpha27ActionProfiles.hero_cast_duration(hid), "pos": center}
 		return
 	zones.append(
 		{
@@ -3928,7 +3938,7 @@ func spawn_hero_signature_effect(hid: String, center: Vector2, dir: Vector2, lv:
 			"color": heroes[hid]["color"]
 		}
 	)
-	hero_cast_flash = {"id": hid, "life": 1.0, "max_life": 1.0, "pos": center}
+	hero_cast_flash = {"id": hid, "life": Alpha27ActionProfiles.hero_cast_duration(hid), "max_life": Alpha27ActionProfiles.hero_cast_duration(hid), "pos": center}
 
 
 func damage_arc(
@@ -8509,15 +8519,10 @@ func draw_world() -> void:
 		var pap: float = action_progress(player_action_anim)
 		var action_dir: Vector2 = Vector2.from_angle(float(player_action_anim.get("angle", 0.0)))
 		var action_kind: String = str(player_action_anim.get("kind", "blade"))
-		if action_kind == "blade":
-			player_offset = action_dir * sin(pap * PI) * 10.0
-			player_rotation = sin(pap * PI) * (0.10 if action_dir.x >= 0.0 else -0.10)
-			player_stretch = Vector2(1.0 + sin(pap * PI) * 0.12, 1.0 - sin(pap * PI) * 0.07)
-		elif action_kind in ["bow", "poison"]:
-			player_offset = -action_dir * sin(pap * PI) * 6.0
-			player_stretch = Vector2(1.0 - sin(pap * PI) * 0.05, 1.0 + sin(pap * PI) * 0.08)
-		else:
-			player_rotation = sin(pap * TAU) * 0.08
+		var pose: Dictionary = Alpha27ActionProfiles.player_pose(action_kind, pap)
+		player_offset = action_dir * float(pose.get("lunge", 0.0))
+		player_rotation = float(pose.get("rotation", 0.0)) * (1.0 if action_dir.x >= 0.0 else -1.0)
+		player_stretch = pose.get("stretch", Vector2.ONE) as Vector2
 	draw_sprite_pose(sprite_tex[chosen_identity], pp + player_offset, PLAYER_SPRITE_SCALE, int(elapsed * 8.0) % 4, pm, player_rotation, player_stretch)
 	if float(player["shield"]) > 0.0:
 		var shield_ratio: float = clamp(float(player["shield"]) / 100.0, 0.0, 1.0)
@@ -8878,10 +8883,11 @@ func draw_hud() -> void:
 			var cast_progress: float = 1.0 - cast_alpha
 			var cast_center: Vector2 = world_to_screen(hero_cast_flash.get("pos", player["pos"]))
 			var cast_side: float = -1.0 if int(active_heroes.find(cast_id)) % 2 == 0 else 1.0
-			var cast_pos: Vector2 = cast_center + Vector2(46.0 * cast_side, -24.0 - sin(cast_progress * PI) * 20.0)
-			var cast_scale: float = 1.15 + sin(cast_progress * PI) * 0.18
+			var cast_pose: Dictionary = Alpha27ActionProfiles.cast_pose(cast_id, cast_progress)
+			var cast_pos: Vector2 = cast_center + Vector2(46.0 * cast_side, -24.0 + float(cast_pose.get("rise", 0.0)))
+			var cast_scale: float = float(cast_pose.get("scale", 1.15))
 			draw_circle(cast_pos, 24.0 + sin(elapsed * 9.0) * 2.0, Color(heroes.get(cast_id, {}).get("color", Color.WHITE), 0.18 * cast_alpha))
-			draw_sprite_pose(sprite_tex[cast_id], cast_pos, cast_scale, int(cast_progress * 8.0) % 4, Color(1, 1, 1, min(1.0, cast_alpha * 1.8)), sin(cast_progress * TAU) * 0.035)
+			draw_sprite_pose(sprite_tex[cast_id], cast_pos, cast_scale, int(cast_progress * 8.0) % 4, Color(1, 1, 1, min(1.0, cast_alpha * 1.8)), float(cast_pose.get("rotation", 0.0)))
 	if not hero_cast_flash.is_empty():
 		var shout_id: String = str(hero_cast_flash.get("id", ""))
 		if heroes.has(shout_id):
