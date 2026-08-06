@@ -76,8 +76,8 @@ func observe_relic_changes() -> void:
 		var relic_id: String = RelicContentRegistry.normalize_id(str(relic_value))
 		if previous_relics.has(relic_value):
 			continue
-		var definition: Dictionary = (host.get("relic_defs") as Dictionary).get(relic_id, {}) as Dictionary
-		emit_relic_event("on_acquired", relic_id, {"definition": definition})
+		var relic_levels: Dictionary = host.get("relic_levels") as Dictionary
+		emit_relic_event("on_acquired", relic_id, int(relic_levels.get(relic_id, 1)))
 	previous_relics = current_relics
 
 func observe_merchant_state() -> void:
@@ -85,10 +85,7 @@ func observe_merchant_state() -> void:
 	if active and not previous_merchant_active:
 		merchant_open_count += 1
 		var merchant_id: String = MerchantContentRegistry.normalize_id(str(host.get("merchant_kind")))
-		var definition: Dictionary = MerchantContentRegistry.get_definition(merchant_id)
-		var events: Node = get_node_or_null("/root/GameEvents")
-		if events != null and events.has_signal("merchant_opened"):
-			events.emit_signal("merchant_opened", merchant_id, definition)
+		publish_event("merchant_opened", {"merchant_id": merchant_id})
 	if not active and previous_merchant_active:
 		# 商人離場後統一使用集中間隔，避免短時間連續生成。
 		var min_interval: float = float(MerchantContentRegistry.RUN_RULES["min_interval"])
@@ -96,13 +93,14 @@ func observe_merchant_state() -> void:
 		host.set("merchant_spawn_timer", randf_range(min_interval, max_interval))
 	previous_merchant_active = active
 
-func emit_relic_event(hook: String, relic_id: String, context: Dictionary = {}) -> void:
-	var payload: Dictionary = context.duplicate(true)
-	payload["hook"] = hook
-	payload["relic_id"] = relic_id
+func emit_relic_event(hook: String, relic_id: String, level: int) -> void:
+	if hook == "on_acquired":
+		publish_event("relic_acquired", {"relic_id": relic_id, "level": level})
+
+func publish_event(event_name: String, payload: Dictionary) -> void:
 	var events: Node = get_node_or_null("/root/GameEvents")
-	if events != null and events.has_signal("relic_acquired") and hook == "on_acquired":
-		events.emit_signal("relic_acquired", relic_id, payload)
+	if events != null and events.has_method("publish"):
+		events.call("publish", event_name, payload)
 
 func merchant_price_multiplier(chapter_number: int, discount_mult: float = 1.0) -> float:
 	if host == null:
