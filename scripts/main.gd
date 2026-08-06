@@ -7324,7 +7324,7 @@ func run_self_test() -> void:
 	if relics.size() != relic_count_after_first_grant or relic_level(offered_relic) != 2:
 		self_test_fail("既有遺物升級後數量或等級異常")
 		return
-	if pending_relic_notice.is_empty() or str(pending_relic_notice.get("id", "")) != granted:
+	if pending_relic_notice.is_empty() or str(pending_relic_notice.get("id", "")) != offered_relic:
 		self_test_fail("新遺物提示未建立")
 		return
 	if int(pending_relic_notice.get("new_level", 0)) != 2 or not bool(pending_relic_notice.get("upgraded", false)):
