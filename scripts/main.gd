@@ -28,6 +28,7 @@ const Alpha27ActionProfiles = preload("res://scripts/systems/combat/alpha27_acti
 const Alpha31TelegraphShapes = preload("res://scripts/systems/boss/alpha31_telegraph_shapes.gd")
 const Alpha32BossHitboxSync = preload("res://scripts/systems/boss/alpha32_boss_hitbox_sync.gd")
 const Alpha33BossAttackTimeline = preload("res://scripts/systems/boss/alpha33_boss_attack_timeline.gd")
+const Alpha35BossPhaseEnrage = preload("res://scripts/systems/boss/alpha35_boss_phase_enrage.gd")
 const Alpha34BossCounterWindow = preload("res://scripts/systems/boss/alpha34_boss_counter_window.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
@@ -35,7 +36,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.34"
+const GAME_VERSION: String = "V2.0.0-alpha.35"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -224,6 +225,7 @@ var player_action_anim: Dictionary = {}
 var boss_action_anim: Dictionary = {}
 var boss_ability_banner: Dictionary = {}
 var boss_attack_timeline: Dictionary = {}
+var boss_phase_state: Dictionary = {}
 var boss_counter_window: float = 0.0
 var boss_counter_was_break: bool = false
 var boss_break_damage: float = 0.0
@@ -352,31 +354,89 @@ var history_route_tags: Dictionary = {}
 
 
 
-func apply_alpha31_portrait_reference_hotfix() -> void:
-	var fixes: Dictionary = {
-		"zhangfei": "res://assets/portraits/zhangfei_default.png",
-		"zhang_fei": "res://assets/portraits/zhangfei_default.png",
-		"caocao": "res://assets/portraits/caocao_default.png",
-		"cao_cao": "res://assets/portraits/caocao_default.png"
+func canonical_hero_id(hero_id: String) -> String:
+	return hero_id.to_lower().replace("_", "").replace("-", "")
+
+
+func repair_all_hero_portrait_bindings() -> void:
+	var formal_portraits: Dictionary = {
+		"caimao": "res://assets/portraits/cai_mao.png",
+		"caiwenji": "res://assets/portraits/cai_wenji.png",
+		"caocao": "res://assets/portraits/cao_cao.png",
+		"caoren": "res://assets/portraits/cao_ren.png",
+		"chengong": "res://assets/portraits/chen_gong.png",
+		"daqiao": "res://assets/portraits/da_qiao.png",
+		"diaochan": "res://assets/portraits/diao_chan.png",
+		"diaochanred": "res://assets/portraits/diaochan_red.png",
+		"dongzhuo": "res://assets/portraits/dong_zhuo.png",
+		"fazheng": "res://assets/portraits/fa_zheng.png",
+		"gaoshun": "res://assets/portraits/gao_shun.png",
+		"guanyu": "res://assets/portraits/guan_yu.png",
+		"guanyuyoung": "res://assets/portraits/guanyu_young.png",
+		"guojia": "res://assets/portraits/guo_jia.png",
+		"huanggai": "res://assets/portraits/huang_gai.png",
+		"huangzhong": "res://assets/portraits/huang_zhong.png",
+		"huatuo": "res://assets/portraits/hua_tuo.png",
+		"huaxiong": "res://assets/portraits/hua_xiong.png",
+		"jiangwei": "res://assets/portraits/jiang_wei.png",
+		"liru": "res://assets/portraits/li_ru.png",
+		"liubei": "res://assets/portraits/liu_bei.png",
+		"lusu": "res://assets/portraits/lu_su.png",
+		"luxun": "res://assets/portraits/lu_xun.png",
+		"lvbu": "res://assets/portraits/lv_bu.png",
+		"lvlingqi": "res://assets/portraits/lv_lingqi.png",
+		"simayi": "res://assets/portraits/sima_yi.png",
+		"sunce": "res://assets/portraits/sun_ce.png",
+		"sunjian": "res://assets/portraits/sun_jian.png",
+		"sunquan": "res://assets/portraits/sun_quan.png",
+		"sunshangxiang": "res://assets/portraits/sun_shangxiang.png",
+		"taishici": "res://assets/portraits/taishi_ci.png",
+		"wangyi": "res://assets/portraits/wang_yi.png",
+		"weiyan": "res://assets/portraits/wei_yan.png",
+		"xiahoudun": "res://assets/portraits/xiahou_dun.png",
+		"xiahouen": "res://assets/portraits/xiahou_en.png",
+		"xiahouyuan": "res://assets/portraits/xiahou_yuan.png",
+		"xuhuang": "res://assets/portraits/xu_huang.png",
+		"yuanshao": "res://assets/portraits/yuan_shao.png",
+		"zhangbao": "res://assets/portraits/zhang_bao.png",
+		"zhangfei": "res://assets/portraits/zhang_fei.png",
+		"zhanghe": "res://assets/portraits/zhang_he.png",
+		"zhangjiao": "res://assets/portraits/zhang_jiao.png",
+		"zhangliang": "res://assets/portraits/zhang_liang.png",
+		"zhangliao": "res://assets/portraits/zhang_liao.png",
+		"zhaoyun": "res://assets/portraits/zhao_yun.png",
+		"zhenji": "res://assets/portraits/zhen_ji.png",
+		"zhouyu": "res://assets/portraits/zhou_yu.png",
+		"zhugeliang": "res://assets/portraits/zhuge_liang.png",
 	}
-	for hero_id in fixes.keys():
-		var portrait_path: String = str(fixes[hero_id])
-		if not ResourceLoader.exists(portrait_path):
-			push_warning("Alpha.31 portrait hotfix missing: %s -> %s" % [hero_id, portrait_path])
+	for hero_value in heroes.keys():
+		var hero_id: String = str(hero_value)
+		var compact_id: String = canonical_hero_id(hero_id)
+		if not formal_portraits.has(compact_id):
+			push_warning("No formal portrait file mapped for hero: %s" % hero_id)
+			portrait_tex.erase(hero_id)
 			continue
-		var portrait: Resource = load(portrait_path)
-		if portrait is Texture2D:
-			portrait_tex[str(hero_id)] = portrait as Texture2D
-		else:
-			push_warning("Alpha.31 portrait hotfix is not Texture2D: %s" % portrait_path)
+		var portrait_path: String = str(formal_portraits[compact_id])
+		if not ResourceLoader.exists(portrait_path) and not FileAccess.file_exists(portrait_path):
+			push_warning("Formal portrait missing: %s -> %s" % [hero_id, portrait_path])
+			portrait_tex.erase(hero_id)
+			continue
+		portrait_tex[hero_id] = runtime_texture(portrait_path)
+
+
+func hero_portrait(hero_id: String) -> Texture2D:
+	if portrait_tex.has(hero_id) and hero_portrait(str(hero_id)) is Texture2D:
+		return hero_portrait(str(hero_id)) as Texture2D
+	push_warning("Hero portrait unavailable; sprite fallback forbidden: %s" % hero_id)
+	return runtime_texture("res://assets/portraits/placeholder.png")
 
 
 func validate_hero_portrait_references() -> void:
-	# 開發期稽核：角色若沒有正式立繪，只記錄警告，不回退使用四格戰場 sprite strip。
-	for hero_id in heroes.keys():
-		var compact_id: String = str(hero_id)
-		if not portrait_tex.has(compact_id) or not (portrait_tex[compact_id] is Texture2D):
-			push_warning("Missing hero portrait reference: %s" % compact_id)
+	for hero_value in heroes.keys():
+		var hero_id: String = str(hero_value)
+		if not portrait_tex.has(hero_id) or not (hero_portrait(str(hero_id)) is Texture2D):
+			push_warning("Missing formal hero portrait reference: %s" % hero_id)
+
 
 func _ready() -> void:
 	self_test_mode = OS.get_cmdline_user_args().has("--self-test")
@@ -396,7 +456,7 @@ func _ready() -> void:
 	ending_manager = EndingManagerScript.new()
 	setup_fonts()
 	load_assets()
-	apply_alpha31_portrait_reference_hotfix()
+	repair_all_hero_portrait_bindings()
 	validate_hero_portrait_references()
 	load_save()
 	refresh_all_skins()
@@ -2166,7 +2226,7 @@ func refresh_skin_asset(hero_id: String) -> void:
 	var sid: String = str(save_data["selected_skins"].get(hero_id, "default"))
 	for skin in skin_defs[hero_id]:
 		if str(skin["id"]) == sid:
-			portrait_tex[hero_id] = runtime_texture(str(skin["portrait"]))
+			hero_portrait(str(hero_id)) = runtime_texture(str(skin["portrait"]))
 			sprite_tex[hero_id] = runtime_texture(str(skin["sprite"]))
 			return
 
@@ -2398,9 +2458,9 @@ func apply_character_art_fallbacks() -> void:
 		var remastered_path: String = "res://assets/portraits_remastered/%s_default.png" % character_id
 		var remastered: Texture2D = runtime_texture(remastered_path)
 		if remastered != null:
-			portrait_tex[character_id] = remastered
+			hero_portrait(str(character_id)) = remastered
 		elif sprite_tex.has(character_id) and sprite_tex[character_id] != null:
-			portrait_tex[character_id] = sprite_tex[character_id]
+			hero_portrait(str(character_id)) = sprite_tex[character_id]
 
 
 func refresh_all_skins() -> void:
@@ -2591,6 +2651,10 @@ func update_game(delta: float) -> void:
 	if flush_pending_run_result():
 		return
 	update_world_events(delta)
+	update_alpha35_boss_phase(delta)
+	if bool(boss_phase_state.get("transitioning", false)):
+		flush_pending_run_result()
+		return
 	if boss_attack_timeline.is_empty():
 		update_boss(delta)
 	else:
@@ -2730,6 +2794,60 @@ func grant_precision_dodge_reward() -> void:
 	show_message("精準閃避！攻速與移速提升", 1.35)
 	play_sfx("dash", 1.08)
 	spawn_ring(player.get("pos", Vector2.ZERO) as Vector2, Color8(116, 216, 178), 46.0, 0.34)
+
+
+func reset_alpha35_boss_phase() -> void:
+	boss_phase_state = {
+		"boss_id": str(boss.get("id", "")),
+		"phase": 1,
+		"transitioning": false,
+		"timer": 0.0,
+		"applied": false
+	}
+
+
+func update_alpha35_boss_phase(delta: float) -> void:
+	if boss.is_empty():
+		boss_phase_state.clear()
+		return
+	var boss_id: String = str(boss.get("id", ""))
+	if boss_phase_state.is_empty() or str(boss_phase_state.get("boss_id", "")) != boss_id:
+		reset_alpha35_boss_phase()
+	if bool(boss_phase_state.get("transitioning", false)):
+		boss_phase_state["timer"] = max(0.0, float(boss_phase_state.get("timer", 0.0)) - delta)
+		if float(boss_phase_state["timer"]) <= 0.0:
+			boss_phase_state["transitioning"] = false
+			boss_phase_state["phase"] = 2
+			boss_phase_state["applied"] = true
+			boss["speed"] = float(boss.get("speed", 70.0)) * Alpha35BossPhaseEnrage.enrage_speed_mult(boss_id)
+			boss["damage"] = float(boss.get("damage", 16.0)) * Alpha35BossPhaseEnrage.enrage_damage_mult(boss_id)
+			boss["special_cd"] = min(float(boss.get("special_cd", 4.0)), 1.4)
+			boss["control_lock"] = max(float(boss.get("control_lock", 0.0)), 0.55)
+			show_message("%s進入狂暴階段！" % str(boss.get("name", "敵將")), 2.2)
+			spawn_ring(boss.get("pos", Vector2.ZERO) as Vector2, Color8(238, 77, 58), 128.0, 0.72)
+			play_sfx("boss_intro", 1.08)
+			screen_shake = max(screen_shake, 14.0)
+		return
+	if int(boss_phase_state.get("phase", 1)) >= 2:
+		return
+	var max_hp: float = max(1.0, float(boss.get("max_hp", boss.get("hp", 1.0))))
+	var hp_ratio: float = float(boss.get("hp", max_hp)) / max_hp
+	if hp_ratio <= Alpha35BossPhaseEnrage.transition_threshold(boss_id):
+		boss_phase_state["transitioning"] = true
+		boss_phase_state["timer"] = Alpha35BossPhaseEnrage.transition_duration(boss_id)
+		boss_attack_timeline.clear()
+		boss["telegraph_time"] = 0.0
+		boss["telegraph_total"] = 0.0
+		boss["control_lock"] = float(boss_phase_state["timer"])
+		show_message("%s：真正的戰鬥現在才開始！" % str(boss.get("name", "敵將")), 2.0)
+		spawn_ring(boss.get("pos", Vector2.ZERO) as Vector2, Color8(245, 183, 73), 105.0, 0.55)
+		play_sfx("boss_warning", 0.86)
+
+
+func alpha35_phase_label() -> String:
+	if boss_phase_state.is_empty():
+		return ""
+	return Alpha35BossPhaseEnrage.phase_label(boss_phase_state)
 
 
 func request_run_result(victory: bool) -> void:
@@ -4016,13 +4134,15 @@ func damage_enemy(index: int, amount: float, source: String, crit: bool) -> int:
 func damage_boss(amount: float, source: String, crit: bool) -> void:
 	if boss.is_empty() or float(boss.get("hp", 0.0)) <= 0.0:
 		return
+	if bool(boss_phase_state.get("transitioning", false)):
+		return
 	var final: float = amount * build_damage_multiplier(source) * equipment_effect("damage_mult", 1.0) * float(history_modifiers.get("player_damage_mult", 1.0))
 	if boss_counter_window > 0.0:
 		final *= Alpha34BossCounterWindow.counter_damage_multiplier(boss_counter_was_break)
 		spawn_sparks(boss.get("pos", Vector2.ZERO) as Vector2, Color8(247, 220, 130), 3)
 	if not boss_attack_timeline.is_empty() and boss_break_immunity <= 0.0:
 		boss_break_damage += final
-		var break_need: float = Alpha34BossCounterWindow.break_threshold(boss, difficulty_id())
+		var break_need: float = Alpha34BossCounterWindow.break_threshold(boss, difficulty_id()) * Alpha35BossPhaseEnrage.break_threshold_mult(boss_phase_state)
 		if boss_break_damage >= break_need:
 			trigger_boss_break()
 	if has_relic("tigerseal"):
@@ -5318,7 +5438,7 @@ func draw_history_event_screen() -> void:
 	var portrait_rect: Rect2 = Rect2(116, 92, 310, 500)
 	draw_panel(portrait_rect, Color(0.025, 0.029, 0.028, 0.96), Color8(98, 88, 65), 1.0)
 	if focus_id != "" and portrait_tex.has(focus_id):
-		draw_texture_contain(portrait_tex[focus_id], portrait_rect.grow(-10.0))
+		draw_texture_contain(hero_portrait(str(focus_id)), portrait_rect.grow(-10.0))
 	else:
 		draw_centered_text("奇遇", portrait_rect, 260.0, 31, Color8(216, 188, 119), true)
 	var right: Rect2 = Rect2(458, 88, 685, 510)
@@ -6825,7 +6945,8 @@ func update_boss(delta: float) -> void:
 		return
 	boss["anim"] = float(boss["anim"]) + delta * 5.5
 	boss["attack_cd"] = max(0.0, float(boss["attack_cd"]) - delta)
-	boss["special_cd"] = max(0.0, float(boss["special_cd"]) - delta)
+	var alpha35_special_delta: float = delta / Alpha35BossPhaseEnrage.special_cooldown_mult(str(boss.get("id", ""))) if int(boss_phase_state.get("phase", 1)) >= 2 else delta
+	boss["special_cd"] = max(0.0, float(boss["special_cd"]) - alpha35_special_delta)
 	if alpha30_update_boss_telegraph(delta):
 		boss["anim"] = float(boss["anim"]) + delta * 1.8
 		return
@@ -8207,7 +8328,7 @@ func draw_character_select_screen() -> void:
 			3.0 if i == select_index else 1.5
 		)
 		var pr: Rect2 = Rect2(r.position + Vector2(22, 22), Vector2(234, 260))
-		draw_texture_contain(portrait_tex[id], pr)
+		draw_texture_contain(hero_portrait(str(id)), pr)
 		draw_text(data["name"], r.position + Vector2(22, 320), 27, data["color"], true)
 		draw_text(
 			"生命 %d　傷害 %d" % [data["hp"], data["damage"]],
@@ -8348,7 +8469,7 @@ func draw_remaster_portrait(character_id: String, rect: Rect2, emphasis: float =
 	draw_panel(rect, Color(0.018, 0.022, 0.023, 0.98), Color(accent, 0.72), 2.0 + pulse)
 	var inner: Rect2 = rect.grow(-8.0 - grow_amount)
 	if portrait_tex.has(character_id):
-		draw_texture_contain(portrait_tex[character_id], inner)
+		draw_texture_contain(hero_portrait(str(character_id)), inner)
 	draw_rect(Rect2(rect.position + Vector2(8, rect.size.y - 54), Vector2(rect.size.x - 16, 46)), Color(0.01, 0.012, 0.013, 0.76), true)
 	draw_line(rect.position + Vector2(12, 12), rect.position + Vector2(rect.size.x - 12, 12), Color(accent, 0.58 + pulse * 0.22), 3.0)
 	draw_line(rect.position + Vector2(12, rect.size.y - 12), rect.position + Vector2(rect.size.x - 12, rect.size.y - 12), Color(accent, 0.42), 2.0)
@@ -9163,7 +9284,7 @@ func draw_hud() -> void:
 	var player_card: Rect2 = Rect2(HUD_HERO_RAIL_RECT.position + Vector2(8, 7), Vector2(198, 62))
 	draw_panel(player_card, Color(0.055, 0.047, 0.034, 0.96), identities[chosen_identity]["color"], 1.5)
 	var player_portrait: Rect2 = Rect2(player_card.position + Vector2(5, 5), Vector2(44, 52))
-	draw_texture_contain(portrait_tex[chosen_identity], player_portrait)
+	draw_texture_contain(hero_portrait(str(chosen_identity)), player_portrait)
 	draw_text("主角｜%s Lv.%d" % [identities[chosen_identity]["name"], int(player["level"])], player_card.position + Vector2(56, 19), 12, Color8(241, 222, 175), true, HORIZONTAL_ALIGNMENT_LEFT, 134)
 	var player_hp_track: Rect2 = Rect2(player_card.position + Vector2(56, 25), Vector2(128, 7))
 	draw_rect(player_hp_track, Color8(55, 37, 34), true)
@@ -9182,7 +9303,7 @@ func draw_hud() -> void:
 		if i < active_heroes.size():
 			var hero_id: String = str(active_heroes[i])
 			draw_panel(card, Color(0.045, 0.052, 0.055, 0.96), heroes[hero_id]["color"], 1.4)
-			draw_texture_contain(portrait_tex[hero_id], Rect2(card.position + Vector2(4, 5), Vector2(40, 50)))
+			draw_texture_contain(hero_portrait(str(hero_id)), Rect2(card.position + Vector2(4, 5), Vector2(40, 50)))
 			var text_x: float = card.position.x + 48.0
 			var text_w: float = max(42.0, card.size.x - 53.0)
 			draw_text("%d｜%s" % [i + 1, heroes[hero_id]["name"]], Vector2(text_x, card.position.y + 18), 11, Color8(239, 224, 187), true, HORIZONTAL_ALIGNMENT_LEFT, text_w)
@@ -9210,7 +9331,7 @@ func draw_hud() -> void:
 			var reserve_id: String = str(reserve_heroes[i])
 			var reserve_card: Rect2 = Rect2(reserve_area.position.x + i * (reserve_icon_w + reserve_gap), reserve_area.position.y + 17.0, reserve_icon_w, 44.0)
 			draw_panel(reserve_card, Color(0.032, 0.039, 0.040, 0.94), Color(heroes[reserve_id]["color"], 0.72), 1.0)
-			draw_texture_contain(portrait_tex[reserve_id], Rect2(reserve_card.position + Vector2(3, 3), Vector2(reserve_card.size.x - 6, 28)))
+			draw_texture_contain(hero_portrait(str(reserve_id)), Rect2(reserve_card.position + Vector2(3, 3), Vector2(reserve_card.size.x - 6, 28)))
 			var short_name: String = str(heroes[reserve_id]["name"])
 			draw_text(short_name, reserve_card.position + Vector2(1, 40), 8, Color8(206, 211, 199), true, HORIZONTAL_ALIGNMENT_CENTER, reserve_card.size.x - 2)
 
@@ -9549,7 +9670,7 @@ func draw_hero_config_screen() -> void:
 		draw_panel(slot_rect, Color(0.05, 0.055, 0.053, 0.96), Color8(112, 103, 79), 1.0)
 		if slot_i < active_heroes.size():
 			var slot_id: String = str(active_heroes[slot_i])
-			draw_texture_contain(portrait_tex[slot_id], Rect2(slot_rect.position + Vector2(5, 5), Vector2(44, 48)))
+			draw_texture_contain(hero_portrait(str(slot_id)), Rect2(slot_rect.position + Vector2(5, 5), Vector2(44, 48)))
 			draw_text(str(heroes[slot_id]["name"]), slot_rect.position + Vector2(56, 25), 15, heroes[slot_id]["color"], true, HORIZONTAL_ALIGNMENT_LEFT, max(60.0, slot_rect.size.x - 62.0))
 			draw_text("Lv.%d" % int(hero_bond_level(slot_id)), slot_rect.position + Vector2(56, 45), 11, Color8(177, 186, 177))
 		else:
@@ -9566,7 +9687,7 @@ func draw_hero_config_screen() -> void:
 		draw_panel(slot_rect, Color(0.043, 0.052, 0.058, 0.96), Color8(83, 126, 151), 1.0)
 		if slot_i < reserve_heroes.size():
 			var slot_id: String = str(reserve_heroes[slot_i])
-			draw_texture_contain(portrait_tex[slot_id], Rect2(slot_rect.position + Vector2(5, 5), Vector2(44, 48)))
+			draw_texture_contain(hero_portrait(str(slot_id)), Rect2(slot_rect.position + Vector2(5, 5), Vector2(44, 48)))
 			draw_text(str(heroes[slot_id]["name"]), slot_rect.position + Vector2(56, 25), 15, heroes[slot_id]["color"], true, HORIZONTAL_ALIGNMENT_LEFT, max(60.0, slot_rect.size.x - 62.0))
 			draw_text("被動 Lv.%d" % int(hero_bond_level(slot_id)), slot_rect.position + Vector2(56, 45), 11, Color8(157, 199, 220))
 		else:
@@ -9590,7 +9711,7 @@ func draw_hero_config_screen() -> void:
 		var rect: Rect2 = Rect2(list_panel.position.x + 12, list_panel.position.y + 48 + row * 52, list_panel.size.x - 24, 46)
 		if i == hero_config_index:
 			draw_rect(rect, Color(0.45, 0.31, 0.12, 0.88), true)
-		draw_texture_contain(portrait_tex[hid], Rect2(rect.position + Vector2(5, 4), Vector2(40, 38)))
+		draw_texture_contain(hero_portrait(str(hid)), Rect2(rect.position + Vector2(5, 4), Vector2(40, 38)))
 		var state: String = "主戰" if active_heroes.has(hid) else ("後備" if reserve_heroes.has(hid) else "營地")
 		var state_color: Color = Color8(232, 196, 112) if state == "主戰" else (Color8(129, 191, 225) if state == "後備" else Color8(157, 164, 157))
 		draw_text("%s　Lv.%d" % [heroes[hid]["name"], hero_bond_level(hid)], rect.position + Vector2(53, 29), 17, heroes[hid]["color"], true, HORIZONTAL_ALIGNMENT_LEFT, 270)
@@ -9601,7 +9722,7 @@ func draw_hero_config_screen() -> void:
 	var selected_id: String = order[hero_config_index]
 	var detail_panel: Rect2 = Rect2(630, 290, 518, 326)
 	draw_panel(detail_panel, Color(0.045, 0.05, 0.05, 0.94), heroes[selected_id]["color"], 1.5)
-	draw_texture_contain(portrait_tex[selected_id], Rect2(detail_panel.position + Vector2(18, 22), Vector2(156, 204)))
+	draw_texture_contain(hero_portrait(str(selected_id)), Rect2(detail_panel.position + Vector2(18, 22), Vector2(156, 204)))
 	draw_text(str(heroes[selected_id]["name"]), detail_panel.position + Vector2(198, 48), 30, heroes[selected_id]["color"], true, HORIZONTAL_ALIGNMENT_LEFT, 285)
 	draw_text(str(heroes[selected_id]["title"]), detail_panel.position + Vector2(198, 78), 17, Color8(223, 212, 179), true, HORIZONTAL_ALIGNMENT_LEFT, 285)
 	draw_text("主動技能", detail_panel.position + Vector2(198, 112), 15, Color8(228, 204, 150), true)
@@ -9752,7 +9873,7 @@ func draw_tab_heroes() -> void:
 		if i < active_heroes.size():
 			var hid: String = str(active_heroes[i])
 			draw_panel(r, Color(0.045, 0.05, 0.05, 0.96), heroes[hid]["color"], 1.4)
-			draw_texture_contain(portrait_tex[hid], Rect2(r.position + Vector2(8, 8), Vector2(65, 82)))
+			draw_texture_contain(hero_portrait(str(hid)), Rect2(r.position + Vector2(8, 8), Vector2(65, 82)))
 			draw_text("%s Lv.%d" % [heroes[hid]["name"], hero_bond_level(hid)], r.position + Vector2(80, 29), 17, heroes[hid]["color"], true, HORIZONTAL_ALIGNMENT_LEFT, max(50.0, r.size.x - 88.0))
 			draw_wrapped(str(heroes[hid]["active"]), Rect2(r.position + Vector2(80, 38), Vector2(max(50.0, r.size.x - 90.0), 72)), 13, Color8(203, 210, 201), 18.0)
 		else:
