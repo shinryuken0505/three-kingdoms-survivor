@@ -1,0 +1,39 @@
+name: Alpha31 Boss Telegraph Shapes
+
+on:
+  push:
+    branches:
+      - feature/alpha31-boss-telegraph-shapes
+    paths:
+      - tools/apply_alpha31_telegraph_shapes.py
+      - scripts/systems/boss/alpha31_telegraph_shapes.gd
+      - .github/workflows/alpha31-boss-telegraph-shapes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha31:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha31]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha31-boss-telegraph-shapes
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.31 telegraph shapes
+        run: python tools/apply_alpha31_telegraph_shapes.py
+      - name: Commit Alpha.31 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/boss/alpha31_telegraph_shapes.gd docs/art/alpha31_boss_telegraph_shapes_report.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.31 changes to commit."
+          else
+            git commit -m "feat: add distinct boss telegraph shapes [skip alpha31]"
+            git push origin HEAD:feature/alpha31-boss-telegraph-shapes
+          fi
