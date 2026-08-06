@@ -1,0 +1,45 @@
+name: Alpha34 Boss Counter Window
+
+on:
+  push:
+    branches:
+      - feature/alpha34-boss-counter-window
+    paths:
+      - tools/apply_alpha34_boss_counter_window.py
+      - scripts/systems/boss/alpha34_boss_counter_window.gd
+      - .github/workflows/alpha34-boss-counter-window.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha34:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha34]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha34-boss-counter-window
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.34 counter window
+        run: python tools/apply_alpha34_boss_counter_window.py
+      - name: Verify patch markers
+        run: |
+          grep -q 'Alpha34BossCounterWindow' scripts/main.gd
+          grep -q 'V2.0.0-alpha.34' scripts/main.gd
+          grep -q 'trigger_boss_break' scripts/main.gd
+          grep -q 'grant_precision_dodge_reward' scripts/main.gd
+      - name: Commit Alpha.34 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/boss/alpha34_boss_counter_window.gd docs/art/alpha34_boss_counter_window_report.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.34 changes to commit."
+          else
+            git commit -m "feat: add boss break and counter windows [skip alpha34]"
+            git push origin HEAD:feature/alpha34-boss-counter-window
+          fi
