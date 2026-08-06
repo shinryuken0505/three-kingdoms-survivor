@@ -1,0 +1,46 @@
+name: Alpha35 Boss Phase Enrage
+
+on:
+  push:
+    branches:
+      - feature/alpha35-boss-phase-enrage
+    paths:
+      - tools/apply_alpha35_phase_and_portrait_fix.py
+      - scripts/systems/boss/alpha35_boss_phase_enrage.gd
+      - .github/workflows/alpha35-boss-phase-enrage.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha35:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha35]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha35-boss-phase-enrage
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.35 phase and portrait fix
+        run: python tools/apply_alpha35_phase_and_portrait_fix.py
+      - name: Verify patch markers
+        run: |
+          grep -q 'V2.0.0-alpha.35' scripts/main.gd
+          grep -q 'repair_all_hero_portrait_bindings' scripts/main.gd
+          grep -q 'Alpha35BossPhaseEnrage' scripts/main.gd
+          grep -q 'boss_phase_state' scripts/main.gd
+          grep -q 'sprite fallback forbidden' scripts/main.gd
+      - name: Commit Alpha.35 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/boss/alpha35_boss_phase_enrage.gd docs/art/alpha35_phase_portrait_report.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.35 changes to commit."
+          else
+            git commit -m "feat: add boss phase enrage and repair all portraits [skip alpha35]"
+            git push origin HEAD:feature/alpha35-boss-phase-enrage
+          fi
