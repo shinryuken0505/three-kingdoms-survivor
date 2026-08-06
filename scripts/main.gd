@@ -425,8 +425,8 @@ func repair_all_hero_portrait_bindings() -> void:
 
 
 func hero_portrait(hero_id: String) -> Texture2D:
-	if portrait_tex.has(hero_id) and hero_portrait(str(hero_id)) is Texture2D:
-		return hero_portrait(str(hero_id)) as Texture2D
+	if portrait_tex.has(hero_id) and portrait_tex[hero_id] is Texture2D:
+		return portrait_tex[hero_id] as Texture2D
 	push_warning("Hero portrait unavailable; sprite fallback forbidden: %s" % hero_id)
 	return runtime_texture("res://assets/portraits/placeholder.png")
 
@@ -434,7 +434,7 @@ func hero_portrait(hero_id: String) -> Texture2D:
 func validate_hero_portrait_references() -> void:
 	for hero_value in heroes.keys():
 		var hero_id: String = str(hero_value)
-		if not portrait_tex.has(hero_id) or not (hero_portrait(str(hero_id)) is Texture2D):
+		if not portrait_tex.has(hero_id) or not (portrait_tex[hero_id] is Texture2D):
 			push_warning("Missing formal hero portrait reference: %s" % hero_id)
 
 
