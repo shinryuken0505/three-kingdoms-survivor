@@ -1,0 +1,40 @@
+name: Alpha29 Relic Reward Presentation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/alpha29-relic-reward-presentation]
+    paths:
+      - tools/apply_alpha29_relic_presentation.py
+      - scripts/ui/relic_notice_ui.gd
+      - scripts/ui/boss_loot_ui.gd
+      - .github/workflows/alpha29-relic-reward-presentation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha29:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha29]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha29-relic-reward-presentation
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.29 relic presentation patch
+        run: python tools/apply_alpha29_relic_presentation.py
+      - name: Commit Alpha.29 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/ui/boss_loot_ui.gd scripts/ui/relic_notice_ui.gd docs/art/alpha29_relic_reward_presentation.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.29 changes to commit."
+          else
+            git commit -m "feat: present relic rewards and centered boss loot [skip alpha29]"
+            git push origin HEAD:feature/alpha29-relic-reward-presentation
+          fi
