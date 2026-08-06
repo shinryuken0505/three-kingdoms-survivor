@@ -9,8 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  apply-alpha28:
-    if: ${{ !contains(github.event.head_commit.message, '[skip alpha28]') }}
+  apply_alpha28:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,9 +64,10 @@ jobs:
 \t\tself_test_fail("既有遺物升級後數量或等級異常")
 \t\treturn
 '''
-          if old not in text:
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'const GAME_VERSION: String = "V2.0.0-alpha.28"' not in text:
               raise SystemExit('Alpha.28 target self-test block not found')
-          text = text.replace(old, new, 1)
           path.write_text(text, encoding='utf-8')
 
           report = Path('docs/art/alpha28_relic_flow_report.md')
