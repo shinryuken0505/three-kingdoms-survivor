@@ -32,7 +32,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.31"
+const GAME_VERSION: String = "V2.0.0-alpha.31-hotfix.1"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -342,6 +342,33 @@ var history_rewrite_rate: float = 0.0
 var history_route_tags: Dictionary = {}
 
 
+
+func apply_alpha31_portrait_reference_hotfix() -> void:
+	var fixes: Dictionary = {
+		"zhangfei": "res://assets/portraits/zhangfei_default.png",
+		"zhang_fei": "res://assets/portraits/zhangfei_default.png",
+		"caocao": "res://assets/portraits/caocao_default.png",
+		"cao_cao": "res://assets/portraits/caocao_default.png"
+	}
+	for hero_id in fixes.keys():
+		var portrait_path: String = str(fixes[hero_id])
+		if not ResourceLoader.exists(portrait_path):
+			push_warning("Alpha.31 portrait hotfix missing: %s -> %s" % [hero_id, portrait_path])
+			continue
+		var portrait: Resource = load(portrait_path)
+		if portrait is Texture2D:
+			portrait_tex[str(hero_id)] = portrait as Texture2D
+		else:
+			push_warning("Alpha.31 portrait hotfix is not Texture2D: %s" % portrait_path)
+
+
+func validate_hero_portrait_references() -> void:
+	# 開發期稽核：角色若沒有正式立繪，只記錄警告，不回退使用四格戰場 sprite strip。
+	for hero_id in heroes.keys():
+		var compact_id: String = str(hero_id)
+		if not portrait_tex.has(compact_id) or not (portrait_tex[compact_id] is Texture2D):
+			push_warning("Missing hero portrait reference: %s" % compact_id)
+
 func _ready() -> void:
 	self_test_mode = OS.get_cmdline_user_args().has("--self-test")
 	audio_enabled = not self_test_mode
@@ -360,6 +387,8 @@ func _ready() -> void:
 	ending_manager = EndingManagerScript.new()
 	setup_fonts()
 	load_assets()
+	apply_alpha31_portrait_reference_hotfix()
+	validate_hero_portrait_references()
 	load_save()
 	refresh_all_skins()
 	setup_audio()
@@ -974,6 +1003,11 @@ func continue_run_from_checkpoint() -> void:
 
 
 func _process(delta: float) -> void:
+	# Alpha.31 hotfix：遺物說明為阻斷型視窗，顯示期間完整凍結戰鬥流程。
+	# 輸入仍由 _unhandled_input 接收，因此玩家可以正常關閉提示。
+	if not pending_relic_notice.is_empty():
+		queue_redraw()
+		return
 	alpha24_update_release_guard(delta)
 	alpha20_update(delta)
 	alpha19_update(delta)
