@@ -1,0 +1,43 @@
+name: Alpha32 Boss Hitbox Sync
+
+on:
+  push:
+    branches:
+      - feature/alpha32-boss-hitbox-sync
+    paths:
+      - tools/apply_alpha32_boss_hitbox_sync.py
+      - scripts/systems/boss/alpha32_boss_hitbox_sync.gd
+      - .github/workflows/alpha32-boss-hitbox-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha32:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha32]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha32-boss-hitbox-sync
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.32 hitbox sync
+        run: python tools/apply_alpha32_boss_hitbox_sync.py
+      - name: Verify patch markers
+        run: |
+          grep -q 'Alpha32BossHitboxSync' scripts/main.gd
+          grep -q 'V2.0.0-alpha.32' scripts/main.gd
+      - name: Commit Alpha.32 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/boss/alpha32_boss_hitbox_sync.gd docs/art/alpha32_boss_hitbox_sync_report.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.32 changes to commit."
+          else
+            git commit -m "feat: sync boss telegraphs with hit detection [skip alpha32]"
+            git push origin HEAD:feature/alpha32-boss-hitbox-sync
+          fi
