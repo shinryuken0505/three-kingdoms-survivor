@@ -1,0 +1,38 @@
+name: Alpha27 Combat Identity Polish
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/alpha27-combat-identity-polish]
+    paths:
+      - tools/apply_alpha27_action_animation.py
+      - scripts/systems/combat/alpha27_action_profiles.gd
+      - .github/workflows/alpha27-combat-identity-polish.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha27:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha27]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha27-combat-identity-polish
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.27 action animation patch
+        run: python tools/apply_alpha27_action_animation.py
+      - name: Commit Alpha.27 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/combat/alpha27_action_profiles.gd docs/art/alpha27_combat_identity_report.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.27 changes to commit."
+          else
+            git commit -m "feat: add readable attack and casting animations [skip alpha27]"
+            git push origin HEAD:feature/alpha27-combat-identity-polish
+          fi
