@@ -17,16 +17,13 @@ static func new_state() -> Dictionary:
 		"config_opened_for_visit": false,
 	}
 
-
 static func active_cap(host: Variant) -> int:
 	var chapter_number: int = int(host.current_chapter().get("index", 0)) + 1
 	return 2 if chapter_number <= 1 else 3
 
-
 static func reserve_cap(host: Variant) -> int:
 	var chapter_number: int = int(host.current_chapter().get("index", 0)) + 1
 	return 1 if chapter_number <= 1 else 2
-
 
 static func apply_roster_caps(host: Variant) -> void:
 	var active_limit: int = active_cap(host)
@@ -42,7 +39,6 @@ static func apply_roster_caps(host: Variant) -> void:
 		if not host.camp_heroes.has(moved_reserve):
 			host.camp_heroes.append(moved_reserve)
 
-
 static func can_spawn_recruit(host: Variant, state: Dictionary) -> bool:
 	var cap: int = clampi(int(state.get("recruit_cap", 3)), 2, MAX_RECRUIT_VISITS)
 	if int(state.get("recruit_visits", 0)) >= cap:
@@ -51,13 +47,10 @@ static func can_spawn_recruit(host: Variant, state: Dictionary) -> bool:
 		return false
 	return true
 
-
 static func register_recruit_visit(host: Variant, state: Dictionary) -> void:
 	state["recruit_visits"] = int(state.get("recruit_visits", 0)) + 1
 	state["config_opened_for_visit"] = false
-	# 小幅降低出現頻率，並避免短時間連續出現。
 	host.hero_spawn_timer = randf_range(105.0, 165.0)
-
 
 static func diversify_level_choices(host: Variant) -> void:
 	if host.level_choices.size() <= 1:
@@ -71,13 +64,11 @@ static func diversify_level_choices(host: Variant) -> void:
 			continue
 		seen[skill_id] = true
 		unique.append(choice)
-	# 玩家不顯示流派；只在背後提高既有能力的相容選項，並保留跨類選擇。
 	unique.shuffle()
 	if unique.size() > 4:
 		unique.resize(4)
 	host.level_choices = unique
 	host.option_index = clampi(host.option_index, 0, max(0, host.level_choices.size() - 1))
-
 
 static func tick(host: Variant, state: Dictionary) -> void:
 	if host.player.is_empty():
@@ -93,7 +84,6 @@ static func tick(host: Variant, state: Dictionary) -> void:
 	state["last_encounter"] = current_encounter
 	state["known_count"] = current_known
 	award_combat_experience(host, state)
-
 
 static func award_combat_experience(host: Variant, state: Dictionary) -> void:
 	var kills: int = int(host.run_stats.get("kills", 0))
@@ -112,10 +102,8 @@ static func award_combat_experience(host: Variant, state: Dictionary) -> void:
 	for hero_value in host.reserve_heroes:
 		grant_hero_xp(host, str(hero_value), int(round(float(base_xp) * RESERVE_XP_RATE)))
 
-
 static func required_xp(level: int) -> int:
 	return 24 + max(0, level - 1) * 18
-
 
 static func grant_hero_xp(host: Variant, hero_id: String, amount: int) -> void:
 	if hero_id == "" or amount <= 0:
@@ -135,7 +123,6 @@ static func grant_hero_xp(host: Variant, hero_id: String, amount: int) -> void:
 		host.show_message("%s成長至 Lv.%d" % [hero_name, level], 2.4)
 	host.hero_experience[hero_id] = xp
 
-
 static func draw_integrated_hud(host: Variant) -> void:
 	var chapter: Dictionary = host.current_chapter()
 	var chapter_name: String = str(chapter.get("name", chapter.get("title", "戰場")))
@@ -145,7 +132,6 @@ static func draw_integrated_hud(host: Variant) -> void:
 	host.draw_text("第%d關｜%s" % [chapter_number, chapter_name], header.position + Vector2(18, 32), 18, Color8(236, 220, 176), true)
 	var elapsed_text: String = "%02d:%02d" % [int(host.elapsed) / 60, int(host.elapsed) % 60]
 	host.draw_text(elapsed_text, header.position + Vector2(574, 32), 16, Color8(196, 204, 202), true, HORIZONTAL_ALIGNMENT_RIGHT, 88)
-
 	if host.boss_spawned and not host.boss.is_empty():
 		var boss_rect: Rect2 = Rect2(350.0, 72.0, 580.0, 50.0)
 		host.draw_panel(boss_rect, Color(0.08, 0.025, 0.028, 0.94), Color8(178, 67, 58), 1.5)
@@ -158,7 +144,6 @@ static func draw_integrated_hud(host: Variant) -> void:
 		var boss_bar: Rect2 = Rect2(boss_rect.position + Vector2(14, 29), Vector2(552, 10))
 		host.draw_rect(boss_bar, Color8(49, 29, 31), true)
 		host.draw_rect(Rect2(boss_bar.position, Vector2(boss_bar.size.x * boss_ratio, boss_bar.size.y)), Color8(190, 55, 49), true)
-
 	var bottom: Rect2 = Rect2(52.0, 614.0, 1176.0, 88.0)
 	host.draw_panel(bottom, Color(0.018, 0.024, 0.027, 0.95), Color8(105, 109, 102), 1.4)
 	var hp: float = float(host.player.get("hp", 0.0))
@@ -174,10 +159,8 @@ static func draw_integrated_hud(host: Variant) -> void:
 	var xp_bar: Rect2 = Rect2(68.0, 662.0, 184.0, 6.0)
 	host.draw_rect(xp_bar, Color8(37, 43, 46), true)
 	host.draw_rect(Rect2(xp_bar.position, Vector2(xp_bar.size.x * xp_ratio, xp_bar.size.y)), Color8(76, 151, 196), true)
-
 	var dash_left: float = max(0.0, float(host.player.get("dash_timer", 0.0)))
 	host.draw_text("閃避 %s" % ("可用" if dash_left <= 0.0 else "%.1fs" % dash_left), Vector2(270, 650), 13, Color8(111, 215, 225) if dash_left <= 0.0 else Color8(190, 177, 143), true)
-
 	var hero_x: float = 390.0
 	var active_limit: int = active_cap(host)
 	for slot in range(active_limit):
@@ -199,6 +182,7 @@ static func draw_integrated_hud(host: Variant) -> void:
 			host.draw_rect(Rect2(hero_xp_bar.position, Vector2(hero_xp_bar.size.x * hero_xp_ratio, hero_xp_bar.size.y)), Color8(193, 151, 73), true)
 		else:
 			host.draw_text("主將空位", card.position + Vector2(31, 33), 12, Color8(126, 132, 130))
-
 	host.draw_text("銅錢 %d" % int(host.player.get("coins", 0)), Vector2(1040, 646), 13, Color8(236, 199, 99), true)
 	host.draw_text("遺物 × %d" % host.relics.size(), Vector2(1040, 670), 13, Color8(183, 198, 201), true)
+
+# Alpha.36 + Alpha.37 integration trigger
