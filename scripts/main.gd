@@ -29,7 +29,7 @@ const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_rost
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.24"
+const GAME_VERSION: String = "V2.0.0-alpha.25"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -7213,12 +7213,12 @@ func run_self_test() -> void:
 	var expected_camp_hp: float = float(player["max_hp"]) * 0.72
 	var expected_camp_shield: float = float(player["max_hp"]) * 0.12
 	if (
-		screen != "hero_config"
+		screen != "camp_menu"
 		or known_hero_order().size() != 3
 		or abs(float(player["hp"]) - expected_camp_hp) > 0.1
 		or abs(float(player["shield"]) - expected_camp_shield) > 0.1
 	):
-		self_test_fail("營地回復、護盾或名將整備失效")
+		self_test_fail("營地回復、護盾或營地選單失效")
 		return
 	screen = "game"
 	enemies.clear()
