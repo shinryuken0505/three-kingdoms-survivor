@@ -989,9 +989,9 @@ func _process(delta: float) -> void:
 		if boss_intro_timer <= 0.0:
 			if chapter_manager.mark_boss_active():
 				boss_spawned = true
-	boss["telegraph_time"] = 0.0
-	boss["telegraph_total"] = 0.0
-	boss["control_lock"] = 0.0
+				boss["telegraph_time"] = 0.0
+				boss["telegraph_total"] = 0.0
+				boss["control_lock"] = 0.0
 				screen = "game"
 				play_current_boss_bgm()
 			else:
