@@ -2,6 +2,7 @@ extends Node
 
 const RelicContentRegistry = preload("res://scripts/systems/relic/relic_content_registry.gd")
 const MerchantContentRegistry = preload("res://scripts/systems/merchant/merchant_content_registry.gd")
+const MerchantProductRegistry = preload("res://scripts/systems/merchant/merchant_product_registry.gd")
 
 var host: Variant = null
 var normalized_once: bool = false
@@ -9,6 +10,7 @@ var previous_relics: Array = []
 var previous_merchant_active: bool = false
 var merchant_open_count: int = 0
 var run_token: String = ""
+var product_catalog: Dictionary = {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -40,6 +42,7 @@ func reset_runtime() -> void:
 	previous_merchant_active = false
 	merchant_open_count = 0
 	run_token = ""
+	product_catalog.clear()
 
 func normalize_content() -> void:
 	var legacy_relics: Dictionary = host.get("relic_defs") as Dictionary
@@ -57,6 +60,9 @@ func normalize_content() -> void:
 				current[key] = registry_def[key]
 		legacy_merchants[merchant_id] = current
 	host.set("merchant_defs", legacy_merchants)
+	product_catalog = MerchantProductRegistry.build_catalog(host.get("relic_defs") as Dictionary, host.get("equipment_defs") as Dictionary)
+	for error_text in MerchantProductRegistry.validate(product_catalog):
+		push_warning("Alpha44 product registry: %s" % error_text)
 
 func publish_rules_to_host() -> void:
 	var player: Dictionary = host.get("player") as Dictionary
@@ -65,6 +71,7 @@ func publish_rules_to_host() -> void:
 	player["alpha44_merchant_rules"] = MerchantContentRegistry.RUN_RULES.duplicate(true)
 	player["alpha44_merchant_visits"] = merchant_open_count
 	player["alpha44_refresh_cost"] = MerchantContentRegistry.refresh_cost(int(host.get("merchant_visit")))
+	player["alpha44_catalog_size"] = product_catalog.size()
 	host.set("player", player)
 
 func observe_relic_changes() -> void:
@@ -87,7 +94,6 @@ func observe_merchant_state() -> void:
 		var merchant_id: String = MerchantContentRegistry.normalize_id(str(host.get("merchant_kind")))
 		publish_event("merchant_opened", {"merchant_id": merchant_id})
 	if not active and previous_merchant_active:
-		# 商人離場後統一使用集中間隔，避免短時間連續生成。
 		var min_interval: float = float(MerchantContentRegistry.RUN_RULES["min_interval"])
 		var max_interval: float = float(MerchantContentRegistry.RUN_RULES["max_interval"])
 		host.set("merchant_spawn_timer", randf_range(min_interval, max_interval))
@@ -106,6 +112,9 @@ func merchant_price_multiplier(chapter_number: int, discount_mult: float = 1.0) 
 	if host == null:
 		return 1.0
 	return MerchantContentRegistry.price_multiplier(str(host.get("merchant_kind")), chapter_number, discount_mult)
+
+func eligible_products(merchant_id: String, chapter_number: int) -> Array[Dictionary]:
+	return MerchantProductRegistry.eligible_products(product_catalog, MerchantContentRegistry.get_definition(merchant_id), chapter_number)
 
 func relic_definition(relic_id: String) -> Dictionary:
 	if host == null:
