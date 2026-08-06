@@ -1,0 +1,47 @@
+name: Alpha38 Formation UI
+
+on:
+  push:
+    branches:
+      - feature/alpha38-hero-formation-progression-ui
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha38]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha38-hero-formation-progression-ui
+          fetch-depth: 0
+
+      - name: Update runtime version and validate integration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          main = Path('scripts/main.gd')
+          text = main.read_text(encoding='utf-8')
+          text = text.replace('const GAME_VERSION: String = "V2.0.0-alpha.35"', 'const GAME_VERSION: String = "V2.0.0-alpha.38"')
+          text = text.replace('const GAME_VERSION: String = "V2.0.0-alpha.37"', 'const GAME_VERSION: String = "V2.0.0-alpha.38"')
+          main.write_text(text, encoding='utf-8')
+          PY
+          grep -q 'V2.0.0-alpha.38' scripts/main.gd
+          grep -q 'Alpha38FormationProgressionUI' project.godot
+          grep -q 'func save_groups' scripts/systems/hero/alpha38_formation_progression_ui.gd
+          grep -q 'func speciality' scripts/systems/hero/alpha38_formation_progression_ui.gd
+          grep -q '主將參戰取得完整經驗' scripts/systems/hero/alpha38_formation_progression_ui.gd
+
+      - name: Commit integration
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/main.gd project.godot scripts/systems/hero/alpha38_formation_progression_ui.gd
+          if git diff --cached --quiet; then
+            echo 'No integration changes required.'
+            exit 0
+          fi
+          git commit -m 'feat: finalize Alpha38 formation progression UI [skip alpha38]'
+          git push origin HEAD:feature/alpha38-hero-formation-progression-ui
