@@ -10,10 +10,14 @@ config_version=5
 
 [application]
 
-config/name="三國人生錄：亂世倖存 V2.0.0-alpha.24"
+config/name="三國人生錄：亂世倖存 V2.0.0-alpha.37"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/icon.png"
+
+[autoload]
+
+Alpha36Alpha37Runtime="*res://scripts/systems/hero/alpha36_37_runtime.gd"
 
 [audio]
 
