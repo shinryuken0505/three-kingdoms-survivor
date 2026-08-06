@@ -3,14 +3,14 @@
 ; since the parameters that go here are not all obvious.
 ;
 ; Format:
-;   [section] ; section goes between []
+;   [section] ; section between []
 ;   param=value ; assign values to parameters
 
 config_version=5
 
 [application]
 
-config/name="三國人生錄：亂世倖存 V2.0.0-alpha.37"
+config/name="三國人生錄：亂世倖存 V2.0.0-alpha.38"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/icon.png"
@@ -18,6 +18,7 @@ config/icon="res://assets/icon.png"
 [autoload]
 
 Alpha36Alpha37Runtime="*res://scripts/systems/hero/alpha36_37_runtime.gd"
+Alpha38FormationProgressionUI="*res://scripts/systems/hero/alpha38_formation_progression_ui.gd"
 
 [audio]
 
