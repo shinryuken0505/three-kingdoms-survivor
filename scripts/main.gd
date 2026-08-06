@@ -29,6 +29,7 @@ const Alpha31TelegraphShapes = preload("res://scripts/systems/boss/alpha31_teleg
 const Alpha32BossHitboxSync = preload("res://scripts/systems/boss/alpha32_boss_hitbox_sync.gd")
 const Alpha33BossAttackTimeline = preload("res://scripts/systems/boss/alpha33_boss_attack_timeline.gd")
 const Alpha35BossPhaseEnrage = preload("res://scripts/systems/boss/alpha35_boss_phase_enrage.gd")
+const Alpha36RosterProgressionHud = preload("res://scripts/systems/hero/alpha36_37_roster_progression_hud.gd")
 const Alpha34BossCounterWindow = preload("res://scripts/systems/boss/alpha34_boss_counter_window.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
@@ -36,7 +37,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.35"
+const GAME_VERSION: String = "V2.0.0-alpha.37"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -45,7 +46,7 @@ const MAX_RELIC_LEVEL: int = 3
 const SAVE_PATH: String = "user://demo6_save.json"
 const SAVE_TEMP_PATH: String = "user://demo6_save.tmp"
 const SAVE_BACKUP_PATH: String = "user://demo6_save.backup.json"
-const SAVE_FORMAT_VERSION: int = 4
+const SAVE_FORMAT_VERSION: int = 5
 const MAX_PICKUPS: int = 110
 const MAX_PARTICLES: int = 190
 const MAX_DAMAGE_NUMBERS: int = 72
@@ -53,7 +54,7 @@ const MAX_ZONES: int = 70
 const MAX_PLAYER_SHOTS: int = 180
 const MAX_ALLIES: int = 18
 const ENEMY_GRID_SIZE: float = 180.0
-const CHECKPOINT_VERSION: int = 4
+const CHECKPOINT_VERSION: int = 5
 const PLAYER_SPRITE_SCALE: float = 1.68
 const ENEMY_SPRITE_SCALE: float = 1.34
 const ELITE_SPRITE_SCALE: float = 1.70
@@ -180,6 +181,7 @@ var reserve_heroes: Array = []
 var camp_heroes: Array = []
 var hero_levels: Dictionary = {} # 舊存檔相容：同步保存羈絆等級
 var hero_skill_levels: Dictionary = {}
+var hero_experience: Dictionary = {}
 var hero_bond_levels: Dictionary = {}
 var departed_heroes: Dictionary = {}
 var hero_star_points: int = 0
@@ -267,6 +269,7 @@ var alpha23_chapter_variant: Dictionary = {}
 var alpha23_pending_ending: Dictionary = {}
 var alpha24_demo_state: Dictionary = {}
 var alpha24_quality_profile: Dictionary = {}
+var alpha36_37_state: Dictionary = Alpha36RosterProgressionHud.new_state()
 var alpha24_frame_sample_timer: float = 0.0
 
 # 章節安全點／寶箱／遺物循環
@@ -444,6 +447,7 @@ func _ready() -> void:
 	rng.randomize()
 	identities = GameData.identities()
 	heroes = GameData.heroes()
+	alpha36_37_state = Alpha36RosterProgressionHud.new_state()
 	relic_defs = GameData.relics()
 	equipment_defs = GameData.equipment()
 	merchant_defs = GameData.merchant_types()
@@ -955,6 +959,8 @@ func save_run_checkpoint() -> bool:
 		"camp_heroes": camp_heroes.duplicate(),
 		"hero_levels": hero_levels.duplicate(true),
 		"hero_skill_levels": hero_skill_levels.duplicate(true),
+		"hero_experience": hero_experience.duplicate(true),
+		"alpha36_37_state": alpha36_37_state.duplicate(true),
 		"hero_bond_levels": hero_bond_levels.duplicate(true),
 		"departed_heroes": departed_heroes.duplicate(true),
 		"hero_star_points": hero_star_points,
@@ -1028,6 +1034,8 @@ func continue_run_from_checkpoint() -> void:
 	hero_levels = (checkpoint.get("hero_levels", {}) as Dictionary).duplicate(true)
 	hero_bond_levels = (checkpoint.get("hero_bond_levels", hero_levels) as Dictionary).duplicate(true)
 	hero_skill_levels = (checkpoint.get("hero_skill_levels", {}) as Dictionary).duplicate(true)
+	hero_experience = (checkpoint.get("hero_experience", {}) as Dictionary).duplicate(true)
+	alpha36_37_state = (checkpoint.get("alpha36_37_state", Alpha36RosterProgressionHud.new_state()) as Dictionary).duplicate(true)
 	departed_heroes = (checkpoint.get("departed_heroes", {}) as Dictionary).duplicate(true)
 	hero_star_points = int(checkpoint.get("hero_star_points", 0))
 	hero_orders = int(checkpoint.get("hero_orders", 0))
@@ -1077,6 +1085,7 @@ func _process(delta: float) -> void:
 	if not pending_relic_notice.is_empty():
 		queue_redraw()
 		return
+	Alpha36RosterProgressionHud.tick(self, alpha36_37_state)
 	alpha24_update_release_guard(delta)
 	alpha20_update(delta)
 	alpha19_update(delta)
@@ -2273,6 +2282,8 @@ func reset_run_data() -> void:
 	camp_heroes.clear()
 	hero_levels.clear()
 	hero_skill_levels.clear()
+	hero_experience.clear()
+	alpha36_37_state = Alpha36RosterProgressionHud.new_state()
 	hero_bond_levels.clear()
 	departed_heroes.clear()
 	hero_star_points = 0
@@ -6112,8 +6123,10 @@ func update_world_events(delta: float) -> void:
 	spawn_history_event_if_ready()
 	if current_encounter == "":
 		hero_spawn_timer -= delta
-		if hero_spawn_timer <= 0.0:
+		if hero_spawn_timer <= 0.0 and Alpha36RosterProgressionHud.can_spawn_recruit(self, alpha36_37_state):
 			spawn_hero_encounter()
+		elif hero_spawn_timer <= 0.0:
+			hero_spawn_timer = 30.0
 	if not merchant_active:
 		merchant_spawn_timer -= delta
 		if merchant_spawn_timer <= 0.0:
@@ -6277,6 +6290,7 @@ func spawn_hero_encounter() -> void:
 		hero_spawn_timer = 12.0
 		return
 	current_encounter = encounter_candidates[0]
+	Alpha36RosterProgressionHud.register_recruit_visit(self, alpha36_37_state)
 	encounter_pos = spaced_event_position(420.0, 720.0, 70.0)
 	hero_spawn_timer = 55.0
 	recruit_refresh_count = 0
@@ -9139,6 +9153,8 @@ func relic_rarity_color(rarity: String) -> Color:
 		_: return Color8(175, 180, 180)
 
 func draw_hud() -> void:
+	Alpha36RosterProgressionHud.draw_integrated_hud(self)
+	return
 	if not asset_errors.is_empty():
 		draw_panel(
 			Rect2(390, 154, 500, 38),
@@ -10587,6 +10603,7 @@ func alpha19_filter_level_choices() -> void:
 	if filtered.size() >= 2:
 		level_choices = filtered
 	option_index = clampi(option_index, 0, max(0, level_choices.size() - 1))
+	Alpha36RosterProgressionHud.diversify_level_choices(self)
 
 
 func alpha19_apply_chapter_setup() -> void:
