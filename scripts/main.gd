@@ -25,13 +25,14 @@ const Alpha23RouteResolver = preload("res://scripts/systems/story/alpha23_route_
 const Alpha23EndingRoutes = preload("res://scripts/systems/ending/alpha23_ending_routes.gd")
 const Alpha24SteamDemo = preload("res://scripts/systems/demo/alpha24_steam_demo.gd")
 const Alpha27ActionProfiles = preload("res://scripts/systems/combat/alpha27_action_profiles.gd")
+const Alpha31TelegraphShapes = preload("res://scripts/systems/boss/alpha31_telegraph_shapes.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.30"
+const GAME_VERSION: String = "V2.0.0-alpha.31"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -4637,7 +4638,7 @@ func update_performance_guard(delta: float) -> void:
 		for i in range(zones.size() - 1, -1, -1):
 			if zones.size() <= zone_cap:
 				break
-			if str(zones[i].get("kind", "")) in ["ring_visual", "impact_visual", "slash_visual", "shockwave_visual", "hero_effect", "hero_line_visual", "hero_arrow_visual"]:
+			if str(zones[i].get("kind", "")) in ["ring_visual", "telegraph_circle", "telegraph_line", "telegraph_sector", "impact_visual", "slash_visual", "shockwave_visual", "hero_effect", "hero_line_visual", "hero_arrow_visual"]:
 				fast_remove_at(zones, i)
 		while zones.size() > zone_cap:
 			fast_remove_at(zones, 0)
@@ -6589,14 +6590,7 @@ func alpha30_begin_boss_telegraph() -> void:
 		"warning": true
 	}
 	var warning_pos: Vector2 = boss.get("telegraph_target", boss.get("pos", Vector2.ZERO))
-	zones.append({
-		"kind": "ring_visual",
-		"pos": warning_pos,
-		"r": 150.0 if str(boss.get("id", "")) != "lvbu" else 190.0,
-		"life": duration,
-		"max_life": duration,
-		"color": Color8(239, 80, 62)
-	})
+	Alpha31TelegraphShapes.append_visuals(zones, boss, warning_pos, duration)
 	play_sfx("boss_warning", 1.0)
 	show_message("%s正在蓄力，注意紅色預警區！" % alpha30_boss_skill_name(), duration)
 
@@ -8423,6 +8417,35 @@ func draw_world() -> void:
 				draw_repeated_area_symbols(p, warning_r, "damage", Color8(255, 225, 215))
 				if float(z.get("shield_pierce", 0.0)) > 0.0:
 					draw_area_symbol(p + Vector2(0, warning_r * 0.34), "pierce", Color8(255, 235, 205), 0.78)
+			"telegraph_circle":
+				var pulse: float = 0.82 + sin(Time.get_ticks_msec() * 0.018) * 0.10
+				var circle_radius: float = float(z.get("r", 150.0))
+				draw_circle(p, circle_radius, Color(0.78, 0.05, 0.04, 0.15 * pulse), true)
+				draw_arc(p, circle_radius, 0.0, TAU, 56, Color(1.0, 0.20, 0.12, 0.92), 4.0)
+				draw_arc(p, circle_radius * clamp(1.0 - alpha, 0.08, 1.0), 0.0, TAU, 48, Color(1.0, 0.72, 0.30, 0.88), 2.0)
+			"telegraph_line":
+				var line_dir: Vector2 = z.get("dir", Vector2.RIGHT) as Vector2
+				var line_length: float = float(z.get("length", 360.0))
+				var line_width: float = float(z.get("width", 76.0))
+				var side: Vector2 = line_dir.orthogonal() * line_width * 0.5
+				var line_end: Vector2 = p + line_dir * line_length
+				var polygon := PackedVector2Array([p - side, p + side, line_end + side, line_end - side])
+				draw_colored_polygon(polygon, Color(0.78, 0.05, 0.04, 0.17))
+				draw_polyline(PackedVector2Array([p - side, line_end - side, line_end + side, p + side]), Color(1.0, 0.20, 0.12, 0.94), 4.0)
+				draw_line(p, line_end, Color(1.0, 0.72, 0.30, 0.90), 2.0)
+			"telegraph_sector":
+				var sector_angle: float = float(z.get("angle", 0.0))
+				var half_angle: float = float(z.get("half_angle", deg_to_rad(36.0)))
+				var sector_radius: float = float(z.get("radius", 230.0))
+				var points := PackedVector2Array([p])
+				var segments: int = 28
+				for sector_index in range(segments + 1):
+					var t: float = float(sector_index) / float(segments)
+					points.append(p + Vector2.from_angle(lerp(sector_angle - half_angle, sector_angle + half_angle, t)) * sector_radius)
+				draw_colored_polygon(points, Color(0.78, 0.05, 0.04, 0.17))
+				draw_arc(p, sector_radius, sector_angle - half_angle, sector_angle + half_angle, segments, Color(1.0, 0.20, 0.12, 0.94), 4.0)
+				draw_line(p, p + Vector2.from_angle(sector_angle - half_angle) * sector_radius, Color(1.0, 0.20, 0.12, 0.94), 3.0)
+				draw_line(p, p + Vector2.from_angle(sector_angle + half_angle) * sector_radius, Color(1.0, 0.20, 0.12, 0.94), 3.0)
 			"ring_visual":
 				draw_arc(p, float(z["r"]) * alpha, 0, TAU, 48, z.get("color", Color.WHITE), 3.0)
 			"slash_visual":
