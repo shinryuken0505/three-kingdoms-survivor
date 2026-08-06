@@ -28,13 +28,14 @@ const Alpha27ActionProfiles = preload("res://scripts/systems/combat/alpha27_acti
 const Alpha31TelegraphShapes = preload("res://scripts/systems/boss/alpha31_telegraph_shapes.gd")
 const Alpha32BossHitboxSync = preload("res://scripts/systems/boss/alpha32_boss_hitbox_sync.gd")
 const Alpha33BossAttackTimeline = preload("res://scripts/systems/boss/alpha33_boss_attack_timeline.gd")
+const Alpha34BossCounterWindow = preload("res://scripts/systems/boss/alpha34_boss_counter_window.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.33"
+const GAME_VERSION: String = "V2.0.0-alpha.34"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -223,6 +224,11 @@ var player_action_anim: Dictionary = {}
 var boss_action_anim: Dictionary = {}
 var boss_ability_banner: Dictionary = {}
 var boss_attack_timeline: Dictionary = {}
+var boss_counter_window: float = 0.0
+var boss_counter_was_break: bool = false
+var boss_break_damage: float = 0.0
+var boss_break_immunity: float = 0.0
+var boss_precision_dodge_rewarded: bool = false
 var yellow_water_used: bool = false
 var survival_used: bool = false
 var temporary_attack_speed: float = 0.0
@@ -2537,6 +2543,8 @@ func update_game(delta: float) -> void:
 	temporary_attack_speed = max(0.0, temporary_attack_speed - delta)
 	temporary_speed = max(0.0, temporary_speed - delta)
 	reserve_roar_cd = max(0.0, reserve_roar_cd - delta)
+	boss_counter_window = max(0.0, boss_counter_window - delta)
+	boss_break_immunity = max(0.0, boss_break_immunity - delta)
 	update_performance_guard(delta)
 	if not hero_cast_flash.is_empty():
 		hero_cast_flash["life"] = max(0.0, float(hero_cast_flash.get("life", 0.0)) - delta)
@@ -2598,6 +2606,10 @@ func start_boss_attack_timeline() -> void:
 		player.get("pos", Vector2.ZERO) as Vector2,
 		alpha30_boss_skill_name()
 	)
+	boss_break_damage = 0.0
+	boss_precision_dodge_rewarded = false
+	boss_counter_window = 0.0
+	boss_counter_was_break = false
 	var total_lock: float = float(boss_attack_timeline.get("total", 0.7)) + float(boss_attack_timeline.get("recover", 0.4))
 	boss["control_lock"] = max(float(boss.get("control_lock", 0.0)), total_lock)
 	boss_action_anim = {
@@ -2629,6 +2641,8 @@ func resolve_boss_timeline_event(event: Dictionary) -> void:
 		damage_player(boss_timeline_damage(float(event.get("damage_mult", 1.0))), "boss", 0.10)
 	else:
 		spawn_ring(player.get("pos", Vector2.ZERO) as Vector2, Color8(110, 196, 142), 30.0, 0.24)
+		if float(player.get("dash_active", 0.0)) > 0.0:
+			grant_precision_dodge_reward()
 
 
 func update_boss_attack_timeline(delta: float) -> void:
@@ -2676,11 +2690,46 @@ func update_boss_attack_timeline(delta: float) -> void:
 		var skill_name: String = str(boss_attack_timeline.get("skill_name", "大招"))
 		var recovered: float = float(boss_attack_timeline.get("recover", 0.42))
 		boss_attack_timeline.clear()
-		boss["control_lock"] = max(float(boss.get("control_lock", 0.0)), recovered)
+		boss_counter_was_break = false
+		boss_counter_window = Alpha34BossCounterWindow.counter_duration(str(boss.get("id", "")), false)
+		boss["control_lock"] = max(float(boss.get("control_lock", 0.0)), max(recovered, boss_counter_window))
 		boss["telegraph_time"] = 0.0
 		boss["telegraph_total"] = 0.0
-		show_message("%s收招，反擊時機！" % skill_name, 1.25)
-		spawn_ring(boss.get("pos", Vector2.ZERO) as Vector2, Color8(235, 199, 116), 58.0, 0.26)
+		show_message("%s收招，弱點暴露！" % skill_name, 1.35)
+		spawn_ring(boss.get("pos", Vector2.ZERO) as Vector2, Color8(247, 220, 130), 68.0, 0.42)
+
+
+func trigger_boss_break() -> void:
+	if boss.is_empty() or boss_attack_timeline.is_empty() or boss_break_immunity > 0.0:
+		return
+	boss_attack_timeline.clear()
+	boss_break_damage = 0.0
+	boss_break_immunity = Alpha34BossCounterWindow.break_immunity_duration()
+	boss_counter_was_break = true
+	boss_counter_window = Alpha34BossCounterWindow.counter_duration(str(boss.get("id", "")), true)
+	boss["control_lock"] = max(float(boss.get("control_lock", 0.0)), boss_counter_window)
+	boss["telegraph_time"] = 0.0
+	boss["telegraph_total"] = 0.0
+	boss_ability_banner.clear()
+	boss_action_anim = {"kind":"boss_break", "life":boss_counter_window, "max_life":boss_counter_window}
+	show_message("破招！Boss弱點大開！", 1.65)
+	play_sfx("crit", 0.82)
+	screen_shake = max(screen_shake, 12.0)
+	spawn_ring(boss.get("pos", Vector2.ZERO) as Vector2, Color8(255, 229, 133), 92.0, 0.58)
+	spawn_sparks(boss.get("pos", Vector2.ZERO) as Vector2, Color8(255, 238, 168), 18)
+
+
+func grant_precision_dodge_reward() -> void:
+	if boss_precision_dodge_rewarded:
+		return
+	boss_precision_dodge_rewarded = true
+	temporary_speed = max(temporary_speed, 2.0)
+	temporary_attack_speed = max(temporary_attack_speed, 2.0)
+	for hid in active_heroes:
+		hero_cooldowns[hid] = max(0.0, float(hero_cooldowns.get(hid, 0.0)) - 0.8)
+	show_message("精準閃避！攻速與移速提升", 1.35)
+	play_sfx("dash", 1.08)
+	spawn_ring(player.get("pos", Vector2.ZERO) as Vector2, Color8(116, 216, 178), 46.0, 0.34)
 
 
 func request_run_result(victory: bool) -> void:
@@ -3968,6 +4017,14 @@ func damage_boss(amount: float, source: String, crit: bool) -> void:
 	if boss.is_empty() or float(boss.get("hp", 0.0)) <= 0.0:
 		return
 	var final: float = amount * build_damage_multiplier(source) * equipment_effect("damage_mult", 1.0) * float(history_modifiers.get("player_damage_mult", 1.0))
+	if boss_counter_window > 0.0:
+		final *= Alpha34BossCounterWindow.counter_damage_multiplier(boss_counter_was_break)
+		spawn_sparks(boss.get("pos", Vector2.ZERO) as Vector2, Color8(247, 220, 130), 3)
+	if not boss_attack_timeline.is_empty() and boss_break_immunity <= 0.0:
+		boss_break_damage += final
+		var break_need: float = Alpha34BossCounterWindow.break_threshold(boss, difficulty_id())
+		if boss_break_damage >= break_need:
+			trigger_boss_break()
 	if has_relic("tigerseal"):
 		final *= 1.12
 	if reserve_heroes.has("guanyu"):
