@@ -30,7 +30,8 @@ const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_rost
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.28"
+const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
+const GAME_VERSION: String = "V2.0.0-alpha.29"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -187,6 +188,7 @@ var relic_levels: Dictionary = {}
 var equipment_inventory: Array = []
 var equipped: Dictionary = {"weapon":"", "body":"", "treasure":"", "accessory":"", "jade":""}
 var pending_boss_loot: Dictionary = {}
+var pending_relic_notice: Dictionary = {}
 var skill_levels: Dictionary = {}
 var run_stats: Dictionary = {}
 var boss: Dictionary = {}
@@ -1018,6 +1020,13 @@ func _input(event: InputEvent) -> void:
 	if key == 0 and key_event.unicode == 32:
 		key = KEY_SPACE
 	var confirm: bool = key_event.is_action_pressed("ui_accept") or is_confirm_key(key)
+	if not pending_relic_notice.is_empty():
+		if confirm or key == KEY_ESCAPE:
+			pending_relic_notice.clear()
+			play_sfx("ui_confirm")
+			queue_redraw()
+			get_viewport().set_input_as_handled()
+		return
 	# 升級畫面使用獨立輸入路徑：直接處理原始 Space／Enter，避免被其他 Modal
 	# 的確認鍵轉換、焦點或 ui_accept 映射攔截。
 	if screen == "levelup":
@@ -4151,12 +4160,26 @@ func random_unowned_relic(preferred: String = "") -> String:
 	return random_relic_offer(preferred)
 
 
+
+func open_relic_notice(rid: String, reason: String, upgraded: bool, old_level: int, new_level: int) -> void:
+	if rid == "" or not relic_defs.has(rid):
+		return
+	pending_relic_notice = {
+		"id": rid,
+		"reason": reason,
+		"upgraded": upgraded,
+		"old_level": old_level,
+		"new_level": new_level
+	}
+	modal_input_lock_until_ms = Time.get_ticks_msec() + 160
+
 func grant_relic(rid: String, reason: String, counts_toward_chapter_limit: bool = true) -> bool:
 	if rid == "" or not relic_defs.has(rid):
 		player["coins"] = int(player.get("coins", 0)) + 10
 		show_message("遺物池已完成，轉化為10枚銅錢。", 2.5)
 		return false
 	var already_owned: bool = relics.has(rid)
+	var previous_level: int = relic_level(rid) if already_owned else 0
 	if not already_owned and counts_toward_chapter_limit and chapter_natural_relics >= MAX_NEW_RELICS_PER_CHAPTER:
 		player["coins"] = int(player.get("coins", 0)) + 14
 		show_message("本章新遺物已達3種上限，轉化為14枚銅錢。", 2.5)
@@ -4168,6 +4191,7 @@ func grant_relic(rid: String, reason: String, counts_toward_chapter_limit: bool 
 			show_message("%s已達Lv.%d，轉化為12枚銅錢。" % [relic_defs[rid]["name"], MAX_RELIC_LEVEL], 2.5)
 			return false
 		relic_levels[rid] = old_level + 1
+		open_relic_notice(rid, reason, already_owned, previous_level, relic_level(rid))
 		trigger_relic(rid, "%s　Lv.%d → Lv.%d" % [reason, old_level, old_level + 1])
 		play_sfx("levelup", 1.12)
 		return true
@@ -4175,10 +4199,10 @@ func grant_relic(rid: String, reason: String, counts_toward_chapter_limit: bool 
 	relic_levels[rid] = 1
 	if counts_toward_chapter_limit:
 		chapter_natural_relics += 1
+	open_relic_notice(rid, reason, already_owned, previous_level, relic_level(rid))
 	trigger_relic(rid, "%s　獲得Lv.1" % reason)
 	play_sfx("levelup", 1.08)
 	return true
-
 
 func grant_random_relic(reason: String, preferred: String = "", counts_toward_chapter_limit: bool = true) -> String:
 	var rid: String = random_relic_offer(preferred)
@@ -7224,6 +7248,13 @@ func run_self_test() -> void:
 	if relics.size() != relic_count_after_first_grant or relic_level(offered_relic) != 2:
 		self_test_fail("既有遺物升級後數量或等級異常")
 		return
+	if pending_relic_notice.is_empty() or str(pending_relic_notice.get("id", "")) != granted:
+		self_test_fail("新遺物提示未建立")
+		return
+	if int(pending_relic_notice.get("new_level", 0)) != 2 or not bool(pending_relic_notice.get("upgraded", false)):
+		self_test_fail("遺物升級提示內容錯誤")
+		return
+	pending_relic_notice.clear()
 	known_heroes = {"liubei": true, "guanyu": true, "zhangfei": true}
 	active_heroes = ["liubei"]
 	reserve_heroes = ["guanyu", "zhangfei"]
@@ -7763,6 +7794,8 @@ func _draw() -> void:
 			if hero_config_origin != "intermission":
 				draw_game_screen()
 			draw_config_replace_screen()
+	if not pending_relic_notice.is_empty():
+		RelicNoticeUIScript.draw(self, pending_relic_notice)
 
 
 func draw_menu_screen() -> void:
