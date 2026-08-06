@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="三國人生錄：亂世倖存 V2.0.0-alpha.39"
+config/name="三國人生錄：亂世倖存 V2.0.0-alpha.40"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/icon.png"
@@ -20,6 +20,7 @@ config/icon="res://assets/icon.png"
 Alpha36Alpha37Runtime="*res://scripts/systems/hero/alpha36_37_runtime.gd"
 Alpha38FormationProgressionUI="*res://scripts/systems/hero/alpha38_formation_progression_ui.gd"
 Alpha39SignatureProgression="*res://scripts/systems/hero/alpha39_signature_progression_runtime.gd"
+Alpha40HeroSkillEvolution="*res://scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd"
 
 [audio]
 
