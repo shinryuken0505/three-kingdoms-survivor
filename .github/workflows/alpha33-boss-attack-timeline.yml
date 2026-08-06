@@ -1,0 +1,45 @@
+name: Alpha33 Boss Attack Timeline
+
+on:
+  push:
+    branches:
+      - feature/alpha33-boss-attack-timeline
+    paths:
+      - tools/apply_alpha33_boss_attack_timeline.py
+      - scripts/systems/boss/alpha33_boss_attack_timeline.gd
+      - .github/workflows/alpha33-boss-attack-timeline.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha33:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha33]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha33-boss-attack-timeline
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.33 attack timeline
+        run: python tools/apply_alpha33_boss_attack_timeline.py
+      - name: Verify patch markers
+        run: |
+          grep -q 'Alpha33BossAttackTimeline' scripts/main.gd
+          grep -q 'boss_attack_timeline' scripts/main.gd
+          grep -q 'V2.0.0-alpha.33' scripts/main.gd
+          grep -q 'func update_boss_attack_timeline' scripts/main.gd
+      - name: Commit Alpha.33 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/boss/alpha33_boss_attack_timeline.gd docs/art/alpha33_boss_attack_timeline_report.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.33 changes to commit."
+          else
+            git commit -m "feat: add multi-stage boss attack timelines [skip alpha33]"
+            git push origin HEAD:feature/alpha33-boss-attack-timeline
+          fi
