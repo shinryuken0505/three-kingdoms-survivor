@@ -18,10 +18,10 @@ const PROFILE: Dictionary = {
 
 var host: Variant = null
 var previous_levels: Dictionary = {}
-var previous_cooldowns: Dictionary = {}
 var level_notice: Dictionary = {}
 var passive_snapshot: Dictionary = {}
 var tick_accum: float = 0.0
+var regen_accum: float = 0.0
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -44,10 +44,11 @@ func _process(delta: float) -> void:
 		return
 	tick_accum += delta
 	apply_active_cooldown_growth(delta)
+	apply_reserve_runtime_effects(delta)
 	if tick_accum >= 0.25:
 		tick_accum = 0.0
 		detect_level_ups()
-		apply_reserve_passives()
+		calculate_reserve_passives()
 	queue_redraw()
 
 func compact_id(hero_id: String) -> String:
@@ -76,7 +77,7 @@ func apply_active_cooldown_growth(delta: float) -> void:
 		cooldowns[hero_id] = max(0.0, current - delta * extra_rate)
 	host.set("hero_cooldowns", cooldowns)
 
-func apply_reserve_passives() -> void:
+func calculate_reserve_passives() -> void:
 	var reserve: Array = host.get("reserve_heroes") as Array
 	var damage_bonus: float = 0.0
 	var speed_bonus: float = 0.0
@@ -106,8 +107,27 @@ func apply_reserve_passives() -> void:
 	player["alpha39_reserve_speed_mult"] = 1.0 + float(passive_snapshot["speed"])
 	player["alpha39_reserve_cooldown_mult"] = 1.0 - float(passive_snapshot["cooldown"])
 	player["alpha39_reserve_regen"] = float(passive_snapshot["regen"])
-	player["alpha39_reserve_control"] = float(passive_snapshot["control"])
+	player["control_resist"] = max(float(player.get("control_resist", 0.0)), float(passive_snapshot["control"]))
 	host.set("player", player)
+
+func apply_reserve_runtime_effects(delta: float) -> void:
+	if passive_snapshot.is_empty() or str(host.get("screen")) != "game":
+		return
+	var cooldown_bonus: float = float(passive_snapshot.get("cooldown", 0.0))
+	if cooldown_bonus > 0.0:
+		var cooldowns: Dictionary = host.get("hero_cooldowns") as Dictionary
+		for key in cooldowns.keys():
+			cooldowns[key] = max(0.0, float(cooldowns[key]) - delta * cooldown_bonus)
+		host.set("hero_cooldowns", cooldowns)
+	regen_accum += delta
+	if regen_accum >= 1.0:
+		regen_accum = 0.0
+		var player: Dictionary = host.get("player") as Dictionary
+		var regen: float = float(passive_snapshot.get("regen", 0.0))
+		if regen > 0.0 and not player.is_empty():
+			var max_hp: float = max(1.0, float(player.get("max_hp", 1.0)))
+			player["hp"] = min(max_hp, float(player.get("hp", 0.0)) + max_hp * regen)
+			host.set("player", player)
 
 func detect_level_ups() -> void:
 	var levels: Dictionary = host.get("hero_skill_levels") as Dictionary
@@ -122,13 +142,7 @@ func detect_level_ups() -> void:
 func show_level_notice(hero_id: String, level: int) -> void:
 	var heroes: Dictionary = host.get("heroes") as Dictionary
 	var hero_name: String = str(heroes.get(hero_id, {}).get("name", hero_id))
-	level_notice = {
-		"hero_id":hero_id,
-		"name":hero_name,
-		"level":level,
-		"signature":str(profile(hero_id).get("name", "名將精進")),
-		"time":3.0,
-	}
+	level_notice = {"hero_id":hero_id, "name":hero_name, "level":level, "signature":str(profile(hero_id).get("name", "名將精進")), "time":3.0}
 	if host.has_method("play_sfx"):
 		host.call("play_sfx", "levelup")
 
