@@ -1,0 +1,167 @@
+name: Apply Alpha36 Alpha37
+
+on:
+  push:
+    branches:
+      - feature/alpha36-alpha37-roster-progression-hud
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha36-37]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha36-alpha37-roster-progression-hud
+          fetch-depth: 0
+
+      - name: Patch main integration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/main.gd')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              if new in text:
+                  print(f'{label}: already applied')
+                  return
+              if old not in text:
+                  raise SystemExit(f'{label}: anchor not found')
+              text = text.replace(old, new, 1)
+              print(f'{label}: applied')
+
+          replace_once(
+              'const Alpha35BossPhaseEnrage = preload("res://scripts/systems/boss/alpha35_boss_phase_enrage.gd")\n',
+              'const Alpha35BossPhaseEnrage = preload("res://scripts/systems/boss/alpha35_boss_phase_enrage.gd")\nconst Alpha36RosterProgressionHud = preload("res://scripts/systems/hero/alpha36_37_roster_progression_hud.gd")\n',
+              'preload'
+          )
+          text = text.replace('const GAME_VERSION: String = "V2.0.0-alpha.35"', 'const GAME_VERSION: String = "V2.0.0-alpha.37"', 1)
+          text = text.replace('const SAVE_FORMAT_VERSION: int = 4', 'const SAVE_FORMAT_VERSION: int = 5', 1)
+          text = text.replace('const CHECKPOINT_VERSION: int = 4', 'const CHECKPOINT_VERSION: int = 5', 1)
+
+          replace_once(
+              'var hero_skill_levels: Dictionary = {}\nvar hero_bond_levels: Dictionary = {}\n',
+              'var hero_skill_levels: Dictionary = {}\nvar hero_experience: Dictionary = {}\nvar hero_bond_levels: Dictionary = {}\n',
+              'hero xp variable'
+          )
+          replace_once(
+              'var alpha24_quality_profile: Dictionary = {}\n',
+              'var alpha24_quality_profile: Dictionary = {}\nvar alpha36_37_state: Dictionary = Alpha36RosterProgressionHud.new_state()\n',
+              'alpha state variable'
+          )
+          replace_once(
+              '\theroes = GameData.heroes()\n',
+              '\theroes = GameData.heroes()\n\talpha36_37_state = Alpha36RosterProgressionHud.new_state()\n',
+              'ready state init'
+          )
+
+          replace_once(
+              '\tif not pending_relic_notice.is_empty():\n\t\tqueue_redraw()\n\t\treturn\n',
+              '\tif not pending_relic_notice.is_empty():\n\t\tqueue_redraw()\n\t\treturn\n\tAlpha36RosterProgressionHud.tick(self, alpha36_37_state)\n',
+              'runtime tick'
+          )
+
+          replace_once(
+              'func draw_hud() -> void:\n',
+              'func draw_hud() -> void:\n\tAlpha36RosterProgressionHud.draw_integrated_hud(self)\n\treturn\n',
+              'integrated hud'
+          )
+
+          replace_once(
+              '\tif current_encounter == "":\n\t\thero_spawn_timer -= delta\n\t\tif hero_spawn_timer <= 0.0:\n\t\t\tspawn_hero_encounter()\n',
+              '\tif current_encounter == "":\n\t\thero_spawn_timer -= delta\n\t\tif hero_spawn_timer <= 0.0 and Alpha36RosterProgressionHud.can_spawn_recruit(self, alpha36_37_state):\n\t\t\tspawn_hero_encounter()\n\t\telif hero_spawn_timer <= 0.0:\n\t\t\thero_spawn_timer = 30.0\n',
+              'recruit frequency gate'
+          )
+
+          replace_once(
+              '\tcurrent_encounter = encounter_candidates[0]\n',
+              '\tcurrent_encounter = encounter_candidates[0]\n\tAlpha36RosterProgressionHud.register_recruit_visit(self, alpha36_37_state)\n',
+              'recruit visit register'
+          )
+
+          replace_once(
+              '\toption_index = clampi(option_index, 0, max(0, level_choices.size() - 1))\n\n\nfunc alpha19_apply_chapter_setup()',
+              '\toption_index = clampi(option_index, 0, max(0, level_choices.size() - 1))\n\tAlpha36RosterProgressionHud.diversify_level_choices(self)\n\n\nfunc alpha19_apply_chapter_setup()',
+              'level choice diversity'
+          )
+
+          replace_once(
+              '\t\t"hero_skill_levels": hero_skill_levels.duplicate(true),\n\t\t"hero_bond_levels": hero_bond_levels.duplicate(true),\n',
+              '\t\t"hero_skill_levels": hero_skill_levels.duplicate(true),\n\t\t"hero_experience": hero_experience.duplicate(true),\n\t\t"alpha36_37_state": alpha36_37_state.duplicate(true),\n\t\t"hero_bond_levels": hero_bond_levels.duplicate(true),\n',
+              'checkpoint save'
+          )
+
+          replace_once(
+              '\thero_skill_levels = (checkpoint.get("hero_skill_levels", {}) as Dictionary).duplicate(true)\n',
+              '\thero_skill_levels = (checkpoint.get("hero_skill_levels", {}) as Dictionary).duplicate(true)\n\thero_experience = (checkpoint.get("hero_experience", {}) as Dictionary).duplicate(true)\n\talpha36_37_state = (checkpoint.get("alpha36_37_state", Alpha36RosterProgressionHud.new_state()) as Dictionary).duplicate(true)\n',
+              'checkpoint restore'
+          )
+
+          replace_once(
+              '\thero_levels.clear()\n\thero_skill_levels.clear()\n\thero_bond_levels.clear()\n',
+              '\thero_levels.clear()\n\thero_skill_levels.clear()\n\thero_experience.clear()\n\talpha36_37_state = Alpha36RosterProgressionHud.new_state()\n\thero_bond_levels.clear()\n',
+              'new run reset'
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Add version report
+        shell: bash
+        run: |
+          mkdir -p docs/releases
+          cat > docs/releases/alpha36_alpha37.md <<'EOF'
+          # Alpha.36 + Alpha.37
+
+          ## 陣容與招賢居
+          - 第一關：主將2位、後備1位。
+          - 第二關起：主將3位、後備2位。
+          - 招賢居全局上限隨開局設定為2至5次，並拉長再次出現間隔。
+          - 招募完成後自動開啟武將整備。
+
+          ## 名將養成
+          - 主將取得完整戰鬥經驗。
+          - 後備取得45%經驗。
+          - 擊敗Boss提供額外經驗。
+          - 名將技能等級由Lv.1逐步成長至Lv.8，經驗與等級寫入章間存檔。
+
+          ## 主角升級
+          - 去除重複選項並提高選項多樣性。
+          - 流派傾向只在系統內部計算，HUD不顯示流派名稱或分數。
+
+          ## 戰鬥HUD
+          - 上方只保留關卡、時間與Boss資訊。
+          - 下方整合主角生命、經驗、閃避冷卻、三位主將技能、名將等級與經驗、銅錢及遺物數量。
+          - 遺物不再於戰鬥畫面逐一常駐顯示。
+          EOF
+
+      - name: Validate integration markers
+        shell: bash
+        run: |
+          grep -q 'V2.0.0-alpha.37' scripts/main.gd
+          grep -q 'Alpha36RosterProgressionHud.tick' scripts/main.gd
+          grep -q 'draw_integrated_hud' scripts/main.gd
+          grep -q 'hero_experience' scripts/main.gd
+          grep -q 'can_spawn_recruit' scripts/main.gd
+          grep -q 'diversify_level_choices' scripts/main.gd
+          grep -q '第二關起：主將3位、後備2位' docs/releases/alpha36_alpha37.md
+
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/main.gd scripts/systems/hero/alpha36_37_roster_progression_hud.gd docs/releases/alpha36_alpha37.md
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git commit -m 'feat: combine Alpha36 roster progression and Alpha37 battle HUD [skip alpha36-37]'
+          git push origin HEAD:feature/alpha36-alpha37-roster-progression-hud
