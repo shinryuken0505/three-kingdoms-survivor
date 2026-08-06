@@ -1,0 +1,38 @@
+name: Alpha30 Boss Telegraph Effects
+
+on:
+  push:
+    branches:
+      - feature/alpha30-boss-telegraph-effects
+    paths:
+      - tools/apply_alpha30_boss_telegraph.py
+      - .github/workflows/alpha30-boss-telegraph-effects.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-alpha30:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha30]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha30-boss-telegraph-effects
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Alpha.30 boss telegraph patch
+        run: python tools/apply_alpha30_boss_telegraph.py
+      - name: Commit Alpha.30 gameplay changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd docs/art/alpha30_boss_telegraph_report.md
+          if git diff --cached --quiet; then
+            echo "No Alpha.30 changes to commit."
+          else
+            git commit -m "feat: add readable boss special telegraphs [skip alpha30]"
+            git push origin HEAD:feature/alpha30-boss-telegraph-effects
+          fi
