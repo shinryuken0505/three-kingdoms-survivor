@@ -30,7 +30,7 @@ const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_rost
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.27"
+const GAME_VERSION: String = "V2.0.0-alpha.28"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -7202,10 +7202,27 @@ func run_self_test() -> void:
 	player_shots.clear()
 	zones.clear()
 	performance_pressure = "穩定"
-	var initial_relic_count: int = relics.size()
-	var granted: String = grant_random_relic("自動測試")
-	if granted == "" or relics.size() != initial_relic_count + 1:
-		self_test_fail("遺物授予流程失效")
+	# Alpha.28：以乾淨狀態分別驗證「新取得」與「重複取得升級」，
+	# 避免既有章節上限或隨機抽到已持有遺物，讓自測誤判授予流程失效。
+	relics.clear()
+	relic_levels.clear()
+	chapter_natural_relics = 0
+	var offered_relic: String = random_relic_offer()
+	if offered_relic == "":
+		self_test_fail("遺物池未提供可授予項目")
+		return
+	if not grant_relic(offered_relic, "自動測試取得", false):
+		self_test_fail("新遺物授予流程失效")
+		return
+	if not relics.has(offered_relic) or relic_level(offered_relic) != 1:
+		self_test_fail("新遺物未正確加入背包或等級不是Lv.1")
+		return
+	var relic_count_after_first_grant: int = relics.size()
+	if not grant_relic(offered_relic, "自動測試升級", false):
+		self_test_fail("既有遺物升級流程失效")
+		return
+	if relics.size() != relic_count_after_first_grant or relic_level(offered_relic) != 2:
+		self_test_fail("既有遺物升級後數量或等級異常")
 		return
 	known_heroes = {"liubei": true, "guanyu": true, "zhangfei": true}
 	active_heroes = ["liubei"]
