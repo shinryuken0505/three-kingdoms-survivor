@@ -26,13 +26,14 @@ const Alpha23EndingRoutes = preload("res://scripts/systems/ending/alpha23_ending
 const Alpha24SteamDemo = preload("res://scripts/systems/demo/alpha24_steam_demo.gd")
 const Alpha27ActionProfiles = preload("res://scripts/systems/combat/alpha27_action_profiles.gd")
 const Alpha31TelegraphShapes = preload("res://scripts/systems/boss/alpha31_telegraph_shapes.gd")
+const Alpha32BossHitboxSync = preload("res://scripts/systems/boss/alpha32_boss_hitbox_sync.gd")
 const HeroRosterManagerScript = preload("res://scripts/systems/hero/hero_roster_manager.gd")
 const HeroRosterControllerScript = preload("res://scripts/systems/hero/hero_roster_controller.gd")
 const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager.gd")
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.31-hotfix.1"
+const GAME_VERSION: String = "V2.0.0-alpha.32"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -6640,7 +6641,12 @@ func alpha30_update_boss_telegraph(delta: float) -> bool:
 		boss_ability_banner["time"] = remaining
 	if remaining <= 0.0:
 		boss_ability_banner["warning"] = false
-		boss_special_attack()
+		var player_pos: Vector2 = player.get("pos", Vector2.ZERO) as Vector2
+		if Alpha32BossHitboxSync.contains_point(boss, player_pos):
+			boss_special_attack()
+		else:
+			spawn_ring(player_pos, Color8(110, 196, 142), 38.0, 0.28)
+			show_message("成功閃避 %s" % alpha30_boss_skill_name(), 1.1)
 		boss_action_anim = {
 			"time": 0.42,
 			"max_time": 0.42,
