@@ -1,0 +1,48 @@
+name: Alpha35 Portrait Source Fix
+
+on:
+  push:
+    branches:
+      - feature/alpha35-boss-phase-enrage
+    paths:
+      - tools/fix_alpha35_portrait_sources.py
+      - .github/workflows/alpha35-portrait-source-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-alpha35-portrait-sources:
+    if: ${{ !contains(github.event.head_commit.message, '[skip alpha35 portrait source]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha35-boss-phase-enrage
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Repair portrait source bindings
+        run: python tools/fix_alpha35_portrait_sources.py
+      - name: Verify portrait source repair
+        run: |
+          grep -q 'V2.0.0-alpha.35-hotfix.2' scripts/main.gd
+          grep -q 'caiwenji_default.png' scripts/main.gd
+          grep -q 'diaochan_default.png' scripts/main.gd
+          grep -q 'sunshangxiang_default.png' scripts/main.gd
+          ! grep -q '"caiwenji": "res://assets/portraits/cai_wenji.png"' scripts/main.gd
+          ! grep -q '"diaochan": "res://assets/portraits/diao_chan.png"' scripts/main.gd
+          ! grep -q '"sunshangxiang": "res://assets/portraits/sun_shangxiang.png"' scripts/main.gd
+          grep -A3 'func hero_portrait' scripts/main.gd | grep -q 'portrait_tex\[hero_id\]'
+      - name: Commit portrait source repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd docs/art/alpha35_portrait_source_hotfix_report.md
+          if git diff --cached --quiet; then
+            echo "No portrait source changes to commit."
+          else
+            git commit -m "fix: restore verified character portraits [skip alpha35 portrait source]"
+            git push origin HEAD:feature/alpha35-boss-phase-enrage
+          fi
