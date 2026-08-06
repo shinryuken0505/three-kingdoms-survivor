@@ -31,7 +31,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.29"
+const GAME_VERSION: String = "V2.0.0-alpha.30"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -989,6 +989,9 @@ func _process(delta: float) -> void:
 		if boss_intro_timer <= 0.0:
 			if chapter_manager.mark_boss_active():
 				boss_spawned = true
+	boss["telegraph_time"] = 0.0
+	boss["telegraph_total"] = 0.0
+	boss["control_lock"] = 0.0
 				screen = "game"
 				play_current_boss_bgm()
 			else:
@@ -6550,6 +6553,76 @@ func move_boss_by_archetype(diff: Vector2, delta: float, phase: int) -> void:
 		boss["pos"] += direction * speed * delta
 
 
+func alpha30_boss_skill_name() -> String:
+	if boss.is_empty():
+		return "敵將絕技"
+	match str(boss.get("id", "")):
+		"zhangjiao": return "太平天雷"
+		"huaxiong": return "西涼裂地斬"
+		"lvbu": return "天下無雙"
+		"caoren": return "鐵壁震軍"
+		"zhanghe": return "巧變突襲"
+		"gaoshun": return "陷陣衝鋒"
+		_: return "敵將絕技"
+
+
+func alpha30_boss_telegraph_duration() -> float:
+	match str(boss.get("id", "")):
+		"lvbu": return 1.05
+		"zhangjiao": return 0.95
+		"huaxiong", "gaoshun": return 0.78
+		_: return 0.68
+
+
+func alpha30_begin_boss_telegraph() -> void:
+	if boss.is_empty() or float(boss.get("telegraph_time", 0.0)) > 0.0:
+		return
+	var duration: float = alpha30_boss_telegraph_duration()
+	boss["telegraph_time"] = duration
+	boss["telegraph_total"] = duration
+	boss["telegraph_target"] = player.get("pos", boss.get("pos", Vector2.ZERO))
+	boss["control_lock"] = duration
+	boss_ability_banner = {
+		"name": alpha30_boss_skill_name(),
+		"time": duration,
+		"max_time": duration,
+		"warning": true
+	}
+	var warning_pos: Vector2 = boss.get("telegraph_target", boss.get("pos", Vector2.ZERO))
+	zones.append({
+		"kind": "ring_visual",
+		"pos": warning_pos,
+		"r": 150.0 if str(boss.get("id", "")) != "lvbu" else 190.0,
+		"life": duration,
+		"max_life": duration,
+		"color": Color8(239, 80, 62)
+	})
+	play_sfx("boss_warning", 1.0)
+	show_message("%s正在蓄力，注意紅色預警區！" % alpha30_boss_skill_name(), duration)
+
+
+func alpha30_update_boss_telegraph(delta: float) -> bool:
+	var remaining: float = float(boss.get("telegraph_time", 0.0))
+	if remaining <= 0.0:
+		return false
+	remaining = max(0.0, remaining - delta)
+	boss["telegraph_time"] = remaining
+	boss["control_lock"] = remaining
+	if not boss_ability_banner.is_empty():
+		boss_ability_banner["time"] = remaining
+	if remaining <= 0.0:
+		boss_ability_banner["warning"] = false
+		boss_special_attack()
+		boss_action_anim = {
+			"time": 0.42,
+			"max_time": 0.42,
+			"kind": "special_release"
+		}
+		screen_shake = max(screen_shake, 8.0)
+		return false
+	return true
+
+
 func update_boss(delta: float) -> void:
 	# Boss生成只能由章節狀態機從LOCKED切到INTRO一次。
 	# 任何結算、死亡、選單或已擊敗狀態都不允許重新生成。
@@ -6569,6 +6642,9 @@ func update_boss(delta: float) -> void:
 	boss["anim"] = float(boss["anim"]) + delta * 5.5
 	boss["attack_cd"] = max(0.0, float(boss["attack_cd"]) - delta)
 	boss["special_cd"] = max(0.0, float(boss["special_cd"]) - delta)
+	if alpha30_update_boss_telegraph(delta):
+		boss["anim"] = float(boss["anim"]) + delta * 1.8
+		return
 	boss["contact_cd"] = max(0.0, float(boss["contact_cd"]) - delta)
 	boss["charge_time"] = max(0.0, float(boss["charge_time"]) - delta)
 	boss["dodge_cd"] = max(0.0, float(boss.get("dodge_cd", 0.0)) - delta)
@@ -6609,7 +6685,7 @@ func update_boss(delta: float) -> void:
 			boss["attack_cd"] = 2.25 if phase == 1 else 1.62
 		boss["attack_cd"] = max(0.56, float(boss["attack_cd"]) / boss_attack_speed_multiplier(phase))
 	if float(boss["special_cd"]) <= 0.0:
-		boss_special_attack()
+		alpha30_begin_boss_telegraph()
 		if boss["id"] == "lvbu":
 			boss["special_cd"] = 6.4 if phase == 1 else 4.35
 		elif boss["id"] in ["caoren", "zhanghe"]:
