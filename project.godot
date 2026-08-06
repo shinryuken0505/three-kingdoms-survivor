@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="三國人生錄：亂世倖存 V2.0.0-alpha.44"
+config/name="三國人生錄：亂世倖存 V2.0.0-alpha.45"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/icon.png"
@@ -22,6 +22,7 @@ Alpha41ArchitectureGuard="*res://scripts/core/alpha41_architecture_guard.gd"
 Alpha42PlayerArchetypes="*res://scripts/systems/player/alpha42_player_archetype_runtime.gd"
 Alpha43DataDrivenHeroes="*res://scripts/systems/hero/alpha43_data_driven_hero_runtime.gd"
 Alpha44RelicMerchantRegistry="*res://scripts/systems/merchant/alpha44_relic_merchant_runtime.gd"
+Alpha45ChapterBranchFlow="*res://scripts/systems/chapter/alpha45_chapter_branch_runtime.gd"
 Alpha36Alpha37Runtime="*res://scripts/systems/hero/alpha36_37_runtime.gd"
 Alpha38FormationProgressionUI="*res://scripts/systems/hero/alpha38_formation_progression_ui.gd"
 Alpha39SignatureProgression="*res://scripts/systems/hero/alpha39_signature_progression_runtime.gd"
