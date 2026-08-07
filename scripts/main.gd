@@ -13,6 +13,7 @@ const StatusEffectService = preload("res://scripts/systems/combat/status_effect_
 const ElementalSynergyService = preload("res://scripts/systems/combat/elemental_synergy_service.gd")
 const RelicStatusSynergyService = preload("res://scripts/systems/relic/relic_status_synergy_service.gd")
 const HeroElementalBuildService = preload("res://scripts/systems/hero/hero_elemental_build_service.gd")
+const HeroRecruitmentAffinityService = preload("res://scripts/systems/hero/hero_recruitment_affinity_service.gd")
 const PlayerUpgradeService = preload("res://scripts/systems/player/player_upgrade_service.gd")
 const MerchantPricingService = preload("res://scripts/systems/merchant/merchant_pricing_service.gd")
 const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rules.gd")
@@ -45,7 +46,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.56"
+const GAME_VERSION: String = "V2.0.0-alpha.57"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -6306,7 +6307,8 @@ func weighted_hero_pick(pool: Array, excluded: Array[String]) -> String:
 			continue
 		if not legendary_hero_available(hid):
 			continue
-		for i in range(legendary_hero_weight(hid)):
+		var recruit_weight: int = HeroRecruitmentAffinityService.adjusted_weight(self, hid, legendary_hero_weight(hid))
+		for i in range(recruit_weight):
 			weighted.append(hid)
 	if weighted.is_empty():
 		return ""
@@ -9638,13 +9640,21 @@ func draw_hero_candidate_screen() -> void:
 	var start_x: float = panel.position.x + (panel.size.x - total_w) * 0.5
 	for i in range(encounter_candidates.size()):
 		var hid: String = encounter_candidates[i]
-		var rect := Rect2(start_x + i * (card_w + gap), 165, card_w, 330)
+		var rect := Rect2(start_x + i * (card_w + gap), 165, card_w, 350)
 		var selected: bool = i == option_index
 		draw_panel(rect, Color(0.20, 0.15, 0.08, 0.96) if selected else Color(0.05, 0.055, 0.052, 0.96), heroes[hid]["color"] if selected else Color8(104, 103, 88), 2.4 if selected else 1.2)
-		draw_remaster_portrait(hid, Rect2(rect.position + Vector2(16, 14), Vector2(rect.size.x - 32, 190)), 0.52)
-		draw_centered_text(str(heroes[hid]["name"]), rect, 235.0, 26, heroes[hid]["color"], true)
-		draw_centered_text(str(heroes[hid]["title"]), rect, 264.0, 14, Color8(222, 211, 178))
-		draw_wrapped("主動：%s\n後備：%s" % [heroes[hid]["active"], heroes[hid]["passive"]], Rect2(rect.position + Vector2(16, 278), Vector2(rect.size.x - 32, 40)), 11, Color8(205, 211, 202), 17.0)
+		draw_remaster_portrait(hid, Rect2(rect.position + Vector2(16, 14), Vector2(rect.size.x - 32, 170)), 0.52)
+		draw_centered_text(str(heroes[hid]["name"]), rect, 214.0, 25, heroes[hid]["color"], true)
+		draw_centered_text(str(heroes[hid]["title"]), rect, 242.0, 14, Color8(222, 211, 178))
+		var tactical_tag: String = HeroRecruitmentAffinityService.element_label(hid)
+		var affinity_hint: String = HeroRecruitmentAffinityService.affinity_hint(self, hid)
+		var synergy_hint: String = HeroRecruitmentAffinityService.synergy_description(hid)
+		draw_centered_text(tactical_tag, rect, 263.0, 12, Color8(196, 207, 191), true)
+		if affinity_hint != "":
+			draw_centered_text(affinity_hint, rect, 282.0, 11, Color8(238, 199, 112), true)
+		elif synergy_hint != "":
+			draw_centered_text(synergy_hint, rect, 282.0, 10, Color8(166, 190, 177))
+		draw_wrapped("主動：%s\n後備：%s" % [heroes[hid]["active"], heroes[hid]["passive"]], Rect2(rect.position + Vector2(16, 300), Vector2(rect.size.x - 32, 42)), 10, Color8(205, 211, 202), 15.0)
 	var refresh_index: int = encounter_candidates.size()
 	var leave_index: int = encounter_candidates.size() + 1
 	var refresh_rect: Rect2 = Rect2(panel.position.x + 215, 525, 340, 56)

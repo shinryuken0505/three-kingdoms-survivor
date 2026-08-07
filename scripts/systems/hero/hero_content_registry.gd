@@ -27,12 +27,13 @@ const HEROES: Dictionary = {
 	"zhenji": {"id":"zhenji","name":"甄姬","faction":"wei","active_skill":"luo_river_song","reserve_passive":"control_support","growth_profile":"controller","element":"frost","status_tags":["slow","stun"],"synergy_tags":["freeze","control"],"portrait":"res://assets/portraits/zhen_ji.png","sprite":"res://assets/heroes/zhenji.png"},
 	"wangyi": {"id":"wangyi","name":"王異","faction":"wei","active_skill":"vengeful_blade","reserve_passive":"critical_support","growth_profile":"duelist","portrait":"res://assets/portraits/wang_yi.png","sprite":"res://assets/heroes/wangyi.png"},
 	"lvlingqi": {"id":"lvlingqi","name":"呂玲綺","faction":"other","active_skill":"flying_halberd","reserve_passive":"speed_support","growth_profile":"duelist","portrait":"res://assets/portraits/lv_ling_qi.png","sprite":"res://assets/heroes/lvlingqi.png"},
+	"zhangjiao": {"id":"zhangjiao","name":"張角","faction":"other","active_skill":"great_peace_thunder","reserve_passive":"strategy_support","growth_profile":"strategist","element":"lightning","status_tags":["shock"],"synergy_tags":["chain","reaction"],"portrait":"res://assets/portraits/zhangjiao_default.png","sprite":"res://assets/sprites/zhangjiao_default.png"},
 	"huatuo": {"id":"huatuo","name":"華佗","faction":"other","active_skill":"qingnang_heal","reserve_passive":"healing_support","growth_profile":"healer","element":"support","status_tags":["cleanse","heal"],"synergy_tags":["recovery","shield"],"portrait":"res://assets/portraits/hua_tuo.png","sprite":"res://assets/heroes/huatuo.png"},
 	"lvbu": {"id":"lvbu","name":"呂布","faction":"other","active_skill":"peerless_rampage","reserve_passive":"warrior_support","growth_profile":"berserker","portrait":"res://assets/portraits/lv_bu.png","sprite":"res://assets/heroes/lvbu.png"}
 }
 
 const ALIASES: Dictionary = {
-	"liu_bei":"liubei", "guan_yu":"guanyu", "zhang_fei":"zhangfei",
+	"liu_bei":"liubei", "guan_yu":"guanyu", "zhang_fei":"zhangfei", "zhang_jiao":"zhangjiao",
 	"zhao_yun":"zhaoyun", "zhuge_liang":"zhugeliang", "cao_cao":"caocao",
 	"xiahou_dun":"xiahou_dun", "xiahoudun":"xiahou_dun", "zhang_he":"zhanghe",
 	"guo_jia":"guojia", "si_ma_yi":"simayi", "sima_yi":"simayi",
