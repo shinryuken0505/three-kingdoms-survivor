@@ -10,6 +10,7 @@ const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progressio
 const PlayerCombatService = preload("res://scripts/systems/player/player_combat_service.gd")
 const PlayerSignaturePassiveService = preload("res://scripts/systems/player/player_signature_passive_service.gd")
 const StatusEffectService = preload("res://scripts/systems/combat/status_effect_service.gd")
+const ElementalSynergyService = preload("res://scripts/systems/combat/elemental_synergy_service.gd")
 const PlayerUpgradeService = preload("res://scripts/systems/player/player_upgrade_service.gd")
 const MerchantPricingService = preload("res://scripts/systems/merchant/merchant_pricing_service.gd")
 const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rules.gd")
@@ -42,7 +43,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.53"
+const GAME_VERSION: String = "V2.0.0-alpha.54"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -1693,6 +1694,22 @@ func reset_chapter_runtime() -> void:
 	frame_peak_last_ms = 0.0
 	frame_spikes_accum = 0
 	frame_spikes_last = 0
+	# Alpha.54：異常聯動回歸。
+	enemies.clear()
+	spawn_enemy("peasant", player["pos"] + Vector2(72.0, 0.0))
+	apply_enemy_status(0, "burn", 3.0, 1.2, 1)
+	apply_enemy_status(0, "poison", 3.0, 1.2, 1)
+	var reaction_statuses: Dictionary = enemies[0].get("status_effects", {}) as Dictionary
+	if not reaction_statuses.has("toxic_blaze"):
+		self_test_fail("Alpha.54 劇毒灼燒未觸發")
+		return
+	apply_enemy_status(0, "slow", 2.0, 0.25, 1)
+	apply_enemy_status(0, "slow", 2.0, 0.25, 1)
+	apply_enemy_status(0, "slow", 2.0, 0.25, 1)
+	reaction_statuses = enemies[0].get("status_effects", {}) as Dictionary
+	if not reaction_statuses.has("stun"):
+		self_test_fail("Alpha.54 冰封聯動未觸發")
+		return
 	hit_stop_timer = 0.0
 	hit_stop_cooldown = 0.0
 	hit_stop_triggers_accum = 0
@@ -4113,6 +4130,9 @@ func build_damage_multiplier(source: String) -> float:
 func damage_enemy(index: int, amount: float, source: String, crit: bool) -> int:
 	if index < 0 or index >= enemies.size():
 		return -1
+	amount *= ElementalSynergyService.damage_multiplier(enemies[index], source)
+	if ElementalSynergyService.is_lightning_source(source):
+		StatusEffectService.apply_enemy(self, index, "shock", 2.4, 0.22, 1)
 	var e: Dictionary = enemies[index]
 	var uid: int = int(e.get("uid", -1))
 	var final: float = max(
@@ -4156,6 +4176,9 @@ func damage_enemy(index: int, amount: float, source: String, crit: bool) -> int:
 func damage_boss(amount: float, source: String, crit: bool) -> void:
 	if boss.is_empty() or float(boss.get("hp", 0.0)) <= 0.0:
 		return
+	amount *= ElementalSynergyService.damage_multiplier(boss, source)
+	if ElementalSynergyService.is_lightning_source(source):
+		StatusEffectService.apply_boss(self, "shock", 2.0, 0.18, 1)
 	if bool(boss_phase_state.get("transitioning", false)):
 		return
 	var final: float = amount * build_damage_multiplier(source) * equipment_effect("damage_mult", 1.0) * float(history_modifiers.get("player_damage_mult", 1.0))
@@ -8951,6 +8974,28 @@ func draw_world() -> void:
 			draw_rect(Rect2(ep.x - w * 0.5, ep.y - 38, w * float(e["hp"]) / float(e["max_hp"]), 7), Color8(224, 166, 55), true)
 			draw_rect(Rect2(ep.x - w * 0.5, ep.y - 38, w, 7), Color8(247, 211, 113), false, 1.0)
 			draw_text(str(e.get("elite_name", "精英敵將")), ep + Vector2(-54, -46), 12, Color8(246, 216, 137), true, HORIZONTAL_ALIGNMENT_CENTER, 108)
+	# Alpha.54：敵人異常狀態以最多三個小圓點呈現，避免文字與特效淹沒戰場。
+	for status_enemy in enemies:
+		var status_pos: Vector2 = world_to_screen(status_enemy.get("pos", Vector2.ZERO))
+		if not Rect2(-80, -80, VIEW.x + 160, VIEW.y + 160).has_point(status_pos):
+			continue
+		var status_map_value: Variant = status_enemy.get("status_effects", {})
+		if not status_map_value is Dictionary:
+			continue
+		var status_map: Dictionary = status_map_value as Dictionary
+		var status_slot: int = 0
+		for status_id in StatusEffectService.EFFECT_ORDER:
+			if not status_map.has(status_id):
+				continue
+			var status_data: Dictionary = status_map[status_id] as Dictionary
+			if float(status_data.get("duration", 0.0)) <= 0.0:
+				continue
+			var dot_pos: Vector2 = status_pos + Vector2(-12.0 + float(status_slot) * 12.0, -31.0 if not bool(status_enemy.get("elite", false)) else -58.0)
+			draw_circle(dot_pos, 4.0, StatusEffectService.effect_color(status_id))
+			draw_circle(dot_pos, 5.5, Color(1, 1, 1, 0.35), false, 1.0)
+			status_slot += 1
+			if status_slot >= 3:
+				break
 	# Boss
 	if not boss.is_empty():
 		var bp: Vector2 = world_to_screen(boss["pos"])

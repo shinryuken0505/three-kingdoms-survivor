@@ -1,10 +1,14 @@
 class_name StatusEffectService
 extends RefCounted
 
-const EFFECT_ORDER: Array[String] = ["burn", "poison", "slow", "stun", "confuse", "charm", "armor_break"]
+const ElementalSynergyService = preload("res://scripts/systems/combat/elemental_synergy_service.gd")
+
+const EFFECT_ORDER: Array[String] = ["toxic_blaze", "burn", "poison", "shock", "slow", "stun", "confuse", "charm", "armor_break"]
 const DISPLAY_NAMES: Dictionary = {
+	"toxic_blaze":"劇毒灼燒",
 	"burn":"燃燒",
 	"poison":"中毒",
+	"shock":"感電",
 	"slow":"緩速",
 	"stun":"暈眩",
 	"confuse":"混亂",
@@ -12,8 +16,10 @@ const DISPLAY_NAMES: Dictionary = {
 	"armor_break":"破甲",
 }
 const EFFECT_COLORS: Dictionary = {
+	"toxic_blaze": Color8(227, 105, 91),
 	"burn": Color8(242, 126, 62),
 	"poison": Color8(116, 205, 103),
+	"shock": Color8(126, 197, 245),
 	"slow": Color8(111, 190, 235),
 	"stun": Color8(244, 214, 94),
 	"confuse": Color8(188, 125, 232),
@@ -155,6 +161,7 @@ static func apply_enemy(host: Object, index: int, effect_id: String, duration: f
 	_sync_legacy(enemy, statuses)
 	enemies[index] = enemy
 	host.set("enemies", enemies)
+	ElementalSynergyService.on_enemy_status_applied(host, index, key)
 	return true
 
 static func tick_enemy(host: Object, index: int, delta: float) -> int:
@@ -205,13 +212,14 @@ static func tick_enemy(host: Object, index: int, delta: float) -> int:
 		live_index = int(host.call("damage_enemy", live_index, float(hit.get("damage", 0.0)), str(hit.get("source", "status")), false))
 		if live_index < 0:
 			return -1
-	return live_index
+	return ElementalSynergyService.tick_enemy(host, live_index, delta)
 
 static func boss_resistance(boss_id: String, effect_id: String) -> float:
 	var key: String = canonical_effect(effect_id)
 	var base: Dictionary = {
 		"burn":0.78,
 		"poison":0.62,
+		"shock":0.48,
 		"slow":0.58,
 		"stun":0.28,
 		"confuse":0.20,
@@ -262,6 +270,7 @@ static func apply_boss(host: Object, effect_id: String, duration: float, potency
 	_write_status(statuses, key, new_duration, new_potency, new_stacks, tick)
 	boss["status_effects"] = statuses
 	host.set("boss", boss)
+	ElementalSynergyService.on_boss_status_applied(host, key)
 	return true
 
 static func tick_boss(host: Object, delta: float) -> void:
@@ -305,6 +314,7 @@ static func tick_boss(host: Object, delta: float) -> void:
 	for hit in pending_hits:
 		if host.has_method("damage_boss") and not (host.get("boss") as Dictionary).is_empty():
 			host.call("damage_boss", float(hit.get("damage", 0.0)), str(hit.get("source", "status")), false)
+	ElementalSynergyService.tick_boss(host, delta)
 
 static func boss_stunned(boss: Dictionary) -> bool:
 	return bool(boss.get("status_stunned", false))
