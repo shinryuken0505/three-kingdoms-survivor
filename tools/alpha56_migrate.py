@@ -19,12 +19,10 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-# Version synchronization.
 for path in ["project.godot", "scripts/main.gd", "scripts/core/alpha48_runtime_coordinator.gd"]:
     text = read(path).replace("V2.0.0-alpha.55", "V2.0.0-alpha.56")
     write(path, text)
 
-# Main runtime consumes hero elemental metadata and routing.
 main = read("scripts/main.gd")
 main = replace_once(
     main,
@@ -48,30 +46,32 @@ main = main.replace(
 )
 write("scripts/main.gd", main)
 
-# Registry becomes the discoverable metadata source for build-aware systems.
 registry = read("scripts/systems/hero/hero_content_registry.gd")
 profiles = {
-    "zhouyu": ('"element":"fire","status_tags":["burn"],"synergy_tags":["area","reaction"],'),
-    "zhangjiao": ('"element":"lightning","status_tags":["shock"],"synergy_tags":["chain","reaction"],'),
-    "zhenji": ('"element":"frost","status_tags":["slow","stun"],"synergy_tags":["freeze","control"],'),
-    "sunshangxiang": ('"element":"fire","status_tags":["burn"],"synergy_tags":["ranged","multihit"],'),
-    "huatuo": ('"element":"support","status_tags":["cleanse","heal"],"synergy_tags":["recovery","shield"],'),
-    "zhugeliang": ('"element":"strategy","status_tags":["slow","stun"],"synergy_tags":["control","reaction_support"],'),
-    "diaochan": ('"element":"control","status_tags":["charm","confuse"],"synergy_tags":["control","debuff"],'),
+    "zhouyu": '"element":"fire","status_tags":["burn"],"synergy_tags":["area","reaction"],',
+    "zhangjiao": '"element":"lightning","status_tags":["shock"],"synergy_tags":["chain","reaction"],',
+    "zhenji": '"element":"frost","status_tags":["slow","stun"],"synergy_tags":["freeze","control"],',
+    "sunshangxiang": '"element":"fire","status_tags":["burn"],"synergy_tags":["ranged","multihit"],',
+    "huatuo": '"element":"support","status_tags":["cleanse","heal"],"synergy_tags":["recovery","shield"],',
+    "zhugeliang": '"element":"strategy","status_tags":["slow","stun"],"synergy_tags":["control","reaction_support"],',
+    "diaochan": '"element":"control","status_tags":["charm","confuse"],"synergy_tags":["control","debuff"],',
 }
 for hero_id, insertion in profiles.items():
     line_prefix = f'\t"{hero_id}": {{'
+    matched = False
     for line in registry.splitlines():
         if line.startswith(line_prefix):
+            matched = True
             if '"element":' not in line:
                 updated = line.replace('"portrait":', insertion + '"portrait":', 1)
                 registry = registry.replace(line, updated, 1)
             break
-    else:
+    # Zhang Jiao is still absent from Alpha.43 HeroContentRegistry; keep his
+    # runtime elemental profile active without fabricating portrait/skill data.
+    if not matched and hero_id != "zhangjiao":
         raise SystemExit(f"Alpha56 registry hero missing: {hero_id}")
 write("scripts/systems/hero/hero_content_registry.gd", registry)
 
-# Skill handler registry includes Zhou Yu's elemental evolution handler.
 handler = read("scripts/systems/hero/hero_skill_handler_registry.gd")
 handler = replace_once(
     handler,
@@ -81,7 +81,6 @@ handler = replace_once(
 )
 write("scripts/systems/hero/hero_skill_handler_registry.gd", handler)
 
-# Alpha40 control evolves through the unified StatusEffectService wrapper.
 evo = read("scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd")
 evo = replace_once(
     evo,
@@ -102,7 +101,6 @@ if "func evolve_zhou_yu" not in evo:
         raise SystemExit("Alpha56 could not insert Zhou Yu evolution")
     evo = evo.replace(marker, zhouyu + marker, 1)
 
-# Hua Tuo now cleanses debuffs when his evolution effect fires.
 old_heal = '\tif level >= LEVEL_8:\n\t\tplayer["alpha40_damage_reduction"] = 0.18\n\t\tplayer["alpha40_damage_reduction_time"] = 3.0\n\thost.set("player", player)\n'
 new_heal = '\tif level >= LEVEL_8:\n\t\tplayer["alpha40_damage_reduction"] = 0.18\n\t\tplayer["alpha40_damage_reduction_time"] = 3.0\n\thost.set("player", player)\n\tHeroElementalBuildService.cleanse_player(host, level)\n'
 evo = replace_once(evo, old_heal, new_heal, "Hua Tuo cleanse")
