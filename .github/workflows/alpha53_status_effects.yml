@@ -1,0 +1,69 @@
+name: Alpha53 Unified Status Effects
+
+on:
+  push:
+    branches:
+      - feature/alpha53-status-effect-system
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  status-effects:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha53-status-effect-system
+          fetch-depth: 0
+
+      - name: Apply Alpha53 migration
+        run: python3 tools/alpha53_migrate.py
+
+      - name: Static status checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          project = Path('project.godot').read_text(encoding='utf-8')
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          service = Path('scripts/systems/combat/status_effect_service.gd').read_text(encoding='utf-8')
+          passive = Path('scripts/systems/player/player_signature_passive_service.gd').read_text(encoding='utf-8')
+          hud = Path('scripts/systems/hero/alpha36_37_roster_progression_hud.gd').read_text(encoding='utf-8')
+          coordinator = Path('scripts/core/alpha48_runtime_coordinator.gd').read_text(encoding='utf-8')
+          for text, label in [(project, 'project'), (main, 'main'), (coordinator, 'coordinator')]:
+              if 'V2.0.0-alpha.53' not in text:
+                  raise SystemExit(label + ' version not synchronized')
+          for token in [
+              'apply_enemy', 'tick_enemy', 'apply_boss', 'tick_boss',
+              'boss_resistance', 'status_summary', 'burn', 'poison',
+              'slow', 'stun', 'confuse', 'charm', 'armor_break',
+          ]:
+              if token not in service:
+                  raise SystemExit('status service missing: ' + token)
+          for token in [
+              'StatusEffectService.tick_enemy(self, cursor, delta)',
+              'StatusEffectService.tick_boss(self, delta)',
+              'func apply_enemy_status', 'func apply_boss_status',
+          ]:
+              if token not in main:
+                  raise SystemExit('main status integration missing: ' + token)
+          for token in ['burn_duration', 'burn_potency', 'StatusEffectService.apply_enemy', 'StatusEffectService.apply_boss']:
+              if token not in passive:
+                  raise SystemExit('strategist burn integration missing: ' + token)
+          if 'StatusEffectService.status_summary(host.boss, 4)' not in hud:
+              raise SystemExit('boss status HUD missing')
+          print('Alpha.53 static status integration passed')
+          PY
+
+      - name: Commit synchronized runtime
+        run: |
+          if git diff --quiet; then
+            echo "No runtime changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd scripts/systems/hero/alpha36_37_roster_progression_hud.gd
+          git commit -m "Alpha.53 connect unified status effects to runtime"
+          git push origin HEAD:feature/alpha53-status-effect-system
