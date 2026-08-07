@@ -2,12 +2,18 @@ extends RefCounted
 
 enum BossState { LOCKED, INTRO, ACTIVE, DEFEATED, RESOLVED }
 
+const FLOW_PHASES: PackedStringArray = ["intro", "combat", "event", "elite", "boss", "loot", "result", "branch", "formation", "autosave", "complete"]
+
 var story_chapters: Array = []
 var trial_definition: Dictionary = {}
 var mode: String = "story"
 var current_index: int = 0
 var boss_state: int = BossState.LOCKED
 var completed_chapters: Array[String] = []
+var flow_phase: String = "intro"
+var selected_branch_id: String = ""
+var branch_effects: Dictionary = {}
+var flow_history: Array[String] = ["intro"]
 
 func configure(story_defs: Array, trial_def: Dictionary) -> void:
 	story_chapters = story_defs.duplicate(true)
@@ -40,6 +46,10 @@ func completed_ids() -> Array[String]:
 
 func reset_current_chapter_state() -> void:
 	boss_state = BossState.LOCKED
+	flow_phase = "intro"
+	selected_branch_id = ""
+	branch_effects.clear()
+	flow_history = ["intro"]
 
 func current() -> Dictionary:
 	if mode == "trial":
@@ -78,30 +88,65 @@ func boss_definition() -> Dictionary:
 		return (boss_value as Dictionary).duplicate(true)
 	return {}
 
+func set_flow_phase(next_phase: String) -> bool:
+	if not FLOW_PHASES.has(next_phase):
+		return false
+	if flow_phase == next_phase:
+		return true
+	flow_phase = next_phase
+	flow_history.append(next_phase)
+	if flow_history.size() > 32:
+		flow_history.pop_front()
+	return true
+
+func set_branch_result(branch_id: String, effects: Dictionary) -> void:
+	selected_branch_id = branch_id
+	branch_effects = effects.duplicate(true)
+
+func flow_snapshot() -> Dictionary:
+	return {
+		"phase": flow_phase,
+		"selected_branch": selected_branch_id,
+		"branch_effects": branch_effects.duplicate(true),
+		"history": flow_history.duplicate(),
+	}
+
+func restore_flow(snapshot: Dictionary) -> void:
+	var phase: String = str(snapshot.get("phase", "intro"))
+	flow_phase = phase if FLOW_PHASES.has(phase) else "intro"
+	selected_branch_id = str(snapshot.get("selected_branch", ""))
+	branch_effects = (snapshot.get("branch_effects", {}) as Dictionary).duplicate(true)
+	var history_value: Variant = snapshot.get("history", [flow_phase])
+	flow_history = (history_value as Array).duplicate() if history_value is Array else [flow_phase]
+
 func request_boss_intro(elapsed_seconds: float) -> bool:
 	if boss_state != BossState.LOCKED:
 		return false
 	if elapsed_seconds < boss_time():
 		return false
 	boss_state = BossState.INTRO
+	set_flow_phase("boss")
 	return true
 
 func mark_boss_active() -> bool:
 	if boss_state != BossState.INTRO:
 		return false
 	boss_state = BossState.ACTIVE
+	set_flow_phase("boss")
 	return true
 
 func mark_boss_defeated() -> bool:
 	if boss_state != BossState.ACTIVE and boss_state != BossState.INTRO:
 		return false
 	boss_state = BossState.DEFEATED
+	set_flow_phase("loot")
 	return true
 
 func resolve_chapter() -> bool:
 	if boss_state != BossState.DEFEATED:
 		return false
 	boss_state = BossState.RESOLVED
+	set_flow_phase("result")
 	var id: String = current_id()
 	if id != "" and not completed_chapters.has(id):
 		completed_chapters.append(id)
@@ -155,7 +200,6 @@ func find_chapter_index(chapter_id: String) -> int:
 	return -1
 
 func advance_to_id(chapter_id: String) -> bool:
-	# Alpha.46：歷史分支可指定下一章。仍要求本章已完成，避免戰鬥中任意跳章。
 	if mode != "story" or boss_state != BossState.RESOLVED:
 		return false
 	var target_index: int = find_chapter_index(chapter_id)
@@ -208,5 +252,6 @@ func debug_snapshot() -> Dictionary:
 		"boss_state_label": boss_state_label(),
 		"is_final_chapter": is_final_chapter(),
 		"campaign_completed": campaign_is_completed(),
-		"completed": completed_chapters.duplicate()
+		"completed": completed_chapters.duplicate(),
+		"flow": flow_snapshot(),
 	}
