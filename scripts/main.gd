@@ -8,6 +8,7 @@ const HistoryEventData = preload("res://scripts/history_event_data.gd")
 const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rules.gd")
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
 const PlayerCombatService = preload("res://scripts/systems/player/player_combat_service.gd")
+const PlayerSignaturePassiveService = preload("res://scripts/systems/player/player_signature_passive_service.gd")
 const PlayerUpgradeService = preload("res://scripts/systems/player/player_upgrade_service.gd")
 const MerchantPricingService = preload("res://scripts/systems/merchant/merchant_pricing_service.gd")
 const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rules.gd")
@@ -40,7 +41,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.50"
+const GAME_VERSION: String = "V2.0.0-alpha.51"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -3775,6 +3776,8 @@ func update_player_shots(delta: float) -> void:
 					apply_poison(live_index, float(shot["poison"]))
 				if live_index >= 0 and has_relic("frostjade") and rng.randf() < 0.08:
 					enemies[live_index]["slow"] = max(float(enemies[live_index]["slow"]), 2.0)
+				if bool(shot.get("alpha51_arcane_orb", false)):
+					PlayerSignaturePassiveService.on_projectile_enemy_hit(self, shot, live_index)
 				shot["pierce"] = int(shot["pierce"]) - 1
 				if int(shot["pierce"]) < 0:
 					remove = true
@@ -3788,6 +3791,8 @@ func update_player_shots(delta: float) -> void:
 				shot["hit_ids"].append(-999)
 				var crit: bool = rng.randf() < float(player["crit"])
 				damage_boss(float(shot["damage"]) * (1.75 if crit else 1.0), str(shot["kind"]), crit)
+				if bool(shot.get("alpha51_arcane_orb", false)):
+					PlayerSignaturePassiveService.on_projectile_boss_hit(self, shot)
 				shot["pierce"] = int(shot["pierce"]) - 1
 				if int(shot["pierce"]) < 0:
 					remove = true
@@ -3835,6 +3840,7 @@ func damage_player(amount: float, source: String, shield_pierce: float = 0.0) ->
 		source_mult *= equipment_effect("arrow_taken_mult", 1.0)
 	if source == "fire":
 		source_mult *= equipment_effect("fire_taken_mult", 1.0)
+	source_mult *= PlayerSignaturePassiveService.incoming_damage_multiplier(self, chosen_identity, source)
 	var reduced: float = max(
 		1.0,
 		(
