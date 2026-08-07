@@ -41,7 +41,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.51"
+const GAME_VERSION: String = "V2.0.0-alpha.52"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -455,7 +455,7 @@ func _ready() -> void:
 	relic_defs = GameData.relics()
 	equipment_defs = GameData.equipment()
 	merchant_defs = GameData.merchant_types()
-	skill_defs = GameData.skills()
+	skill_defs = PlayerUpgradeService.install_signature_definitions(GameData.skills())
 	bond_defs = GameData.bonds()
 	skin_defs = GameData.skins()
 	history_event_defs = HistoryEventData.events()
@@ -1350,7 +1350,7 @@ func menu_options() -> Array:
 
 
 func identity_order() -> Array:
-	return ["swordsman", "hunter", "poisoner", "heroine"]
+	return ["swordsman", "archer", "strategist"]
 
 
 func handle_menu_key(key: int) -> void:
@@ -2420,10 +2420,10 @@ func start_run(mode: String, identity_id: String) -> void:
 		"survival_cd": 0.0,
 		"formation_relic_cd": 0.0
 	}
-	if identity_id == "hunter":
+	if identity_id in ["hunter", "archer"]:
 		player["pierce"] = 1
 		skill_levels["projectile"] = 1
-	elif identity_id == "poisoner":
+	elif identity_id in ["poisoner", "strategist"]:
 		skill_levels["poison"] = 1
 	elif identity_id == "heroine":
 		player["crit"] = 0.10
@@ -8344,29 +8344,30 @@ func draw_character_select_screen() -> void:
 	for i in range(order.size()):
 		var id: String = str(order[i])
 		var data: Dictionary = identities[id]
-		var r: Rect2 = Rect2(48 + i * 303, 122, 278, 500)
+		var r: Rect2 = Rect2(48 + i * 401, 122, 376, 500)
 		draw_panel(
 			r,
 			Color(0.07, 0.08, 0.08, 0.96) if i != select_index else Color(0.19, 0.15, 0.085, 0.98),
 			Color8(229, 200, 128) if i == select_index else Color8(100, 105, 98),
 			3.0 if i == select_index else 1.5
 		)
-		var pr: Rect2 = Rect2(r.position + Vector2(22, 22), Vector2(234, 260))
+		var pr: Rect2 = Rect2(r.position + Vector2(22, 22), Vector2(332, 240))
 		draw_texture_contain(hero_portrait(str(id)), pr)
-		draw_text(data["name"], r.position + Vector2(22, 320), 27, data["color"], true)
+		draw_text(data["name"], r.position + Vector2(22, 300), 27, data.get("color", Color8(222, 203, 150)), true)
 		draw_text(
 			"生命 %d　傷害 %d" % [data["hp"], data["damage"]],
-			r.position + Vector2(22, 354),
+			r.position + Vector2(22, 336),
 			17,
 			Color8(216, 218, 205)
 		)
 		draw_wrapped(
 			data["desc"],
-			Rect2(r.position + Vector2(22, 370), Vector2(234, 94)),
+			Rect2(r.position + Vector2(22, 355), Vector2(332, 66)),
 			16,
 			Color8(199, 205, 196),
 			22.0
 		)
+		draw_text("專屬：%s" % PlayerUpgradeService.passive_name(id), r.position + Vector2(22, 438), 15, Color8(169, 213, 185), true, HORIZONTAL_ALIGNMENT_LEFT, 332)
 		draw_text(
 			"武器：%s" % weapon_display_name(str(data["weapon"])),
 			r.position + Vector2(22, 476),
@@ -10072,7 +10073,9 @@ func draw_tab_summary() -> void:
 	draw_text("目前戰術評估", Vector2(100, 160), 27, Color8(239, 213, 153), true)
 	draw_wrapped(build, Rect2(100, 195, 1020, 210), 20, Color8(215, 220, 210), 31.0)
 	var build_now: Dictionary = dominant_build()
-	draw_text("流派共鳴：%s｜%s（%d）" % [build_now["name"], build_resonance_stage_name(build_resonance_stage(int(build_now["score"]))), build_now["score"]], Vector2(100, 425), 19, build_now["color"], true)
+	draw_text("戰術共鳴：%s｜%s（%d）" % [build_now["name"], build_resonance_stage_name(build_resonance_stage(int(build_now["score"]))), build_now["score"]], Vector2(100, 425), 19, build_now["color"], true)
+	draw_text("主角專屬：%s" % PlayerUpgradeService.passive_name(chosen_identity), Vector2(100, 468), 17, Color8(176, 218, 188), true)
+	draw_wrapped("專屬進化：%s" % PlayerUpgradeService.signature_summary(chosen_identity, skill_levels), Rect2(100, 492, 1020, 54), 16, Color8(205, 211, 202), 23.0)
 	draw_wrapped(build_bonus_description(), Rect2(100, 448, 1020, 46), 16, Color8(196, 207, 193), 22.0)
 	draw_text("遺物傾向：%s" % relic_category_summary(), Vector2(100, 505), 18, Color8(194, 207, 184), true)
 	draw_text("戰績", Vector2(100, 545), 23, Color8(205, 193, 159), true)
