@@ -1,56 +1,62 @@
-name: Alpha50 Player Combat Handlers
+name: Alpha51 Player Signature Passives
 
 on:
   push:
     branches:
-      - feature/alpha50-player-combat-handlers
+      - feature/alpha51-player-signature-passives
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  player-combat-handlers:
+  player-signature-passives:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/alpha50-player-combat-handlers
+          ref: feature/alpha51-player-signature-passives
           fetch-depth: 0
 
-      - name: Apply Alpha50 migration
-        run: python3 tools/alpha50_migrate.py
+      - name: Apply Alpha51 migration
+        run: python3 tools/alpha51_migrate.py
 
-      - name: Static combat checks
+      - name: Static passive checks
         run: |
           python3 - <<'PY'
           from pathlib import Path
           project = Path('project.godot').read_text(encoding='utf-8')
           main = Path('scripts/main.gd').read_text(encoding='utf-8')
-          service = Path('scripts/systems/player/player_combat_service.gd').read_text(encoding='utf-8')
-          if 'V2.0.0-alpha.50' not in project or 'V2.0.0-alpha.50' not in main:
-              raise SystemExit('Alpha.50 version not synchronized')
-          for token in ['MeleeArcHandler.execute', 'RangedArrowHandler.execute', 'StrategyOrbHandler.execute']:
-              if token not in service:
-                  raise SystemExit('combat handler not connected: ' + token)
-          for path in [
-              'scripts/systems/player/combat_handlers/melee_arc_handler.gd',
-              'scripts/systems/player/combat_handlers/ranged_arrow_handler.gd',
-              'scripts/systems/player/combat_handlers/strategy_orb_handler.gd',
+          passive = Path('scripts/systems/player/player_signature_passive_service.gd').read_text(encoding='utf-8')
+          if 'V2.0.0-alpha.51' not in project or 'V2.0.0-alpha.51' not in main:
+              raise SystemExit('Alpha.51 version not synchronized')
+          for token in [
+              'PlayerSignaturePassiveService.incoming_damage_multiplier',
+              'PlayerSignaturePassiveService.on_projectile_enemy_hit',
+              'PlayerSignaturePassiveService.on_projectile_boss_hit',
           ]:
-              if not Path(path).exists():
-                  raise SystemExit('missing ' + path)
-          print('Alpha.50 static combat integration passed')
+              if token not in main:
+                  raise SystemExit('main passive integration missing: ' + token)
+          for token in ['blade_guard', 'eagle_eye', 'arcane_flow', 'arcane_burst_profile']:
+              if token not in passive:
+                  raise SystemExit('passive definition missing: ' + token)
+          melee = Path('scripts/systems/player/combat_handlers/melee_arc_handler.gd').read_text(encoding='utf-8')
+          ranged = Path('scripts/systems/player/combat_handlers/ranged_arrow_handler.gd').read_text(encoding='utf-8')
+          strategy = Path('scripts/systems/player/combat_handlers/strategy_orb_handler.gd').read_text(encoding='utf-8')
+          assert 'alpha51_blade_chain' in melee and 'blade_wave' in melee
+          assert 'eagle_eye_damage_multiplier' in ranged
+          assert 'alpha51_arcane_orb' in strategy
+          print('Alpha.51 static passive integration passed')
           PY
 
-      - name: Commit synchronized version
+      - name: Commit synchronized runtime
         run: |
           if git diff --quiet; then
-            echo "No version changes required."
+            echo "No runtime changes required."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd
-          git commit -m "Alpha.50 synchronize player combat handlers"
-          git push origin HEAD:feature/alpha50-player-combat-handlers
+          git commit -m "Alpha.51 connect signature passives to gameplay"
+          git push origin HEAD:feature/alpha51-player-signature-passives
