@@ -4045,7 +4045,7 @@ func build_resonance_scores() -> Dictionary:
 	var scores: Dictionary = {"blade":0, "arrow":0, "poison":0, "command":0, "survival":0, "element":0}
 	if chosen_identity == "swordsman":
 		scores["blade"] += 2
-	elif chosen_identity == "hunter":
+	elif chosen_identity in ["hunter", "archer"]:
 		scores["arrow"] += 2
 	elif chosen_identity == "poisoner":
 		scores["poison"] += 2
@@ -8317,6 +8317,14 @@ func draw_save_confirmation_screen() -> void:
 			draw_panel(rect, Color(0.06, 0.07, 0.065, 0.92), Color8(94, 99, 91), 1.0)
 		draw_centered_text(labels[i], rect, 34.0, 20, Color8(235, 226, 201), i == confirm_index)
 
+func identity_visual_id(id: String) -> String:
+	if id == "archer" and (not portrait_tex.has(id) or not sprite_tex.has(id)):
+		return "hunter"
+	if id == "strategist" and (not portrait_tex.has(id) or not sprite_tex.has(id)):
+		return "poisoner"
+	return id
+
+
 func weapon_display_name(id: String) -> String:
 	match id:
 		"blade":
@@ -8327,6 +8335,8 @@ func weapon_display_name(id: String) -> String:
 			return "百草毒針"
 		"rings":
 			return "紅袖環刃"
+		"talisman":
+			return "符籙法器"
 	return id
 
 
@@ -8352,7 +8362,7 @@ func draw_character_select_screen() -> void:
 			3.0 if i == select_index else 1.5
 		)
 		var pr: Rect2 = Rect2(r.position + Vector2(22, 22), Vector2(332, 240))
-		draw_texture_contain(hero_portrait(str(id)), pr)
+		draw_texture_contain(hero_portrait(identity_visual_id(id)), pr)
 		draw_text(data["name"], r.position + Vector2(22, 300), 27, data.get("color", Color8(222, 203, 150)), true)
 		draw_text(
 			"生命 %d　傷害 %d" % [data["hp"], data["damage"]],
@@ -9008,7 +9018,7 @@ func draw_world() -> void:
 		player_offset = action_dir * float(pose.get("lunge", 0.0))
 		player_rotation = float(pose.get("rotation", 0.0)) * (1.0 if action_dir.x >= 0.0 else -1.0)
 		player_stretch = pose.get("stretch", Vector2.ONE) as Vector2
-	draw_sprite_pose(sprite_tex[chosen_identity], pp + player_offset, PLAYER_SPRITE_SCALE, int(elapsed * 8.0) % 4, pm, player_rotation, player_stretch)
+	draw_sprite_pose(sprite_tex[identity_visual_id(chosen_identity)], pp + player_offset, PLAYER_SPRITE_SCALE, int(elapsed * 8.0) % 4, pm, player_rotation, player_stretch)
 	if float(player["shield"]) > 0.0:
 		var shield_ratio: float = clamp(float(player["shield"]) / 100.0, 0.0, 1.0)
 		var pulse: float = 2.5 + sin(elapsed * 5.0) * 1.5
@@ -10074,11 +10084,11 @@ func draw_tab_summary() -> void:
 	draw_wrapped(build, Rect2(100, 195, 1020, 210), 20, Color8(215, 220, 210), 31.0)
 	var build_now: Dictionary = dominant_build()
 	draw_text("戰術共鳴：%s｜%s（%d）" % [build_now["name"], build_resonance_stage_name(build_resonance_stage(int(build_now["score"]))), build_now["score"]], Vector2(100, 425), 19, build_now["color"], true)
-	draw_text("主角專屬：%s" % PlayerUpgradeService.passive_name(chosen_identity), Vector2(100, 468), 17, Color8(176, 218, 188), true)
-	draw_wrapped("專屬進化：%s" % PlayerUpgradeService.signature_summary(chosen_identity, skill_levels), Rect2(100, 492, 1020, 54), 16, Color8(205, 211, 202), 23.0)
-	draw_wrapped(build_bonus_description(), Rect2(100, 448, 1020, 46), 16, Color8(196, 207, 193), 22.0)
-	draw_text("遺物傾向：%s" % relic_category_summary(), Vector2(100, 505), 18, Color8(194, 207, 184), true)
-	draw_text("戰績", Vector2(100, 545), 23, Color8(205, 193, 159), true)
+	draw_text("主角專屬：%s" % PlayerUpgradeService.passive_name(chosen_identity), Vector2(100, 490), 17, Color8(176, 218, 188), true)
+	draw_wrapped("專屬進化：%s" % PlayerUpgradeService.signature_summary(chosen_identity, skill_levels), Rect2(100, 514, 1020, 38), 15, Color8(205, 211, 202), 23.0)
+	draw_wrapped(build_bonus_description(), Rect2(100, 446, 1020, 40), 15, Color8(196, 207, 193), 20.0)
+	draw_text("遺物傾向：%s" % relic_category_summary(), Vector2(100, 566), 17, Color8(194, 207, 184), true)
+	draw_text("戰績", Vector2(100, 596), 20, Color8(205, 193, 159), true)
 	draw_text(
 		(
 			"擊敗 %d　造成傷害 %d　承受傷害 %d　箭矢命中 %d"
@@ -10089,8 +10099,8 @@ func draw_tab_summary() -> void:
 				run_stats.get("arrows_taken", 0)
 			]
 		),
-		Vector2(100, 585),
-		18,
+		Vector2(100, 624),
+		15,
 		Color8(201, 207, 198)
 	)
 
@@ -10103,7 +10113,7 @@ func build_summary() -> String:
 		or active_heroes.has("sunshangxiang")
 	):
 		tags.append("遠距穿透")
-	if chosen_identity == "poisoner" or reserve_heroes.has("zhangjiao") or has_relic("poisonbag"):
+	if chosen_identity in ["poisoner", "strategist"] or reserve_heroes.has("zhangjiao") or has_relic("poisonbag"):
 		tags.append("中毒傳播")
 	if active_heroes.has("zhangfei") or active_heroes.has("huatuo"):
 		tags.append("防守脫困")
