@@ -4047,7 +4047,7 @@ func build_resonance_scores() -> Dictionary:
 		scores["blade"] += 2
 	elif chosen_identity in ["hunter", "archer"]:
 		scores["arrow"] += 2
-	elif chosen_identity == "poisoner":
+	elif chosen_identity in ["poisoner", "strategist"]:
 		scores["poison"] += 2
 	elif chosen_identity == "heroine":
 		scores["element"] += 2
