@@ -47,8 +47,9 @@ jobs:
               raise SystemExit('protagonist TAB information not connected')
           if 'LEGACY_ALIASES' not in registry:
               raise SystemExit('legacy protagonist aliases missing')
-          if 'sig_blade_guard' not in passive or 'sig_eagle_eye' not in passive or 'alpha52_burst_level' not in passive:
-              raise SystemExit('signature upgrades not consumed by passive service')
+          for token in ['sig_blade_guard', 'eagle_eye_damage_multiplier', 'alpha52_burst_level']:
+              if token not in passive:
+                  raise SystemExit('signature passive integration missing: ' + token)
           for path, token in [
               ('scripts/systems/player/combat_handlers/melee_arc_handler.gd', 'sig_blade_wave'),
               ('scripts/systems/player/combat_handlers/ranged_arrow_handler.gd', 'sig_split_arrow'),
