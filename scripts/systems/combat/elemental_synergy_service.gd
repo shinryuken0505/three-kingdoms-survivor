@@ -105,9 +105,14 @@ static func _chain_enemy_shock(host: Object, source_index: int) -> void:
 			candidates.append({"index":index, "distance":distance})
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["distance"]) < float(b["distance"]))
 	var hit_count: int = min(2, candidates.size())
-	for i in range(hit_count - 1, -1, -1):
-		var target_index: int = int(candidates[i].get("index", -1))
-		if target_index < 0 or target_index >= (host.get("enemies") as Array).size():
+	var target_indices: Array[int] = []
+	for i in range(hit_count):
+		target_indices.append(int(candidates[i].get("index", -1)))
+	target_indices.sort()
+	target_indices.reverse()
+	for target_index in target_indices:
+		var live_enemies: Array = host.get("enemies") as Array
+		if target_index < 0 or target_index >= live_enemies.size():
 			continue
 		if host.has_method("damage_enemy"):
 			host.call("damage_enemy", target_index, 8.0, "shock_chain", false)
@@ -130,18 +135,14 @@ static func tick_enemy(host: Object, index: int, delta: float) -> int:
 		timers[timer_key] = max(0.0, float(timers[timer_key]) - delta)
 	var toxic: Dictionary = statuses.get("toxic_blaze", {}) as Dictionary
 	var pending_damage: float = 0.0
+	# duration 已由 StatusEffectService 統一遞減；本服務只管理反應自己的 tick，避免時間被扣兩次。
 	if not toxic.is_empty() and float(toxic.get("duration", 0.0)) > 0.0:
-		var left: float = max(0.0, float(toxic.get("duration", 0.0)) - delta)
 		var tick_left: float = float(toxic.get("tick", 0.0)) - delta
-		toxic["duration"] = left
 		if tick_left <= 0.0:
 			pending_damage = 4.0 + float(toxic.get("potency", 0.0)) * 2.2
 			tick_left = 0.82
 		toxic["tick"] = tick_left
-		if left <= 0.0:
-			statuses.erase("toxic_blaze")
-		else:
-			statuses["toxic_blaze"] = toxic
+		statuses["toxic_blaze"] = toxic
 	enemy["status_effects"] = statuses
 	enemy["status_reaction_timers"] = timers
 	enemies[index] = enemy
@@ -179,17 +180,12 @@ static func tick_boss(host: Object, delta: float) -> void:
 	var toxic: Dictionary = statuses.get("toxic_blaze", {}) as Dictionary
 	var damage: float = 0.0
 	if not toxic.is_empty() and float(toxic.get("duration", 0.0)) > 0.0:
-		var left: float = max(0.0, float(toxic.get("duration", 0.0)) - delta)
 		var tick_left: float = float(toxic.get("tick", 0.0)) - delta
-		toxic["duration"] = left
 		if tick_left <= 0.0:
 			damage = 3.2 + float(toxic.get("potency", 0.0)) * 1.65
 			tick_left = 0.92
 		toxic["tick"] = tick_left
-		if left <= 0.0:
-			statuses.erase("toxic_blaze")
-		else:
-			statuses["toxic_blaze"] = toxic
+		statuses["toxic_blaze"] = toxic
 	boss["status_effects"] = statuses
 	host.set("boss", boss)
 	if damage > 0.0 and host.has_method("damage_boss"):
