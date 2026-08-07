@@ -1,0 +1,67 @@
+name: Alpha56 Elemental Hero Builds
+
+on:
+  push:
+    branches:
+      - feature/alpha56-elemental-hero-build-expansion
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  elemental-hero-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha56-elemental-hero-build-expansion
+          fetch-depth: 0
+
+      - name: Apply Alpha56 migration
+        run: python3 tools/alpha56_migrate.py
+
+      - name: Static hero build checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files = {
+              'project': Path('project.godot').read_text(encoding='utf-8'),
+              'main': Path('scripts/main.gd').read_text(encoding='utf-8'),
+              'coordinator': Path('scripts/core/alpha48_runtime_coordinator.gd').read_text(encoding='utf-8'),
+              'registry': Path('scripts/systems/hero/hero_content_registry.gd').read_text(encoding='utf-8'),
+              'service': Path('scripts/systems/hero/hero_elemental_build_service.gd').read_text(encoding='utf-8'),
+              'handler': Path('scripts/systems/hero/hero_skill_handler_registry.gd').read_text(encoding='utf-8'),
+              'evolution': Path('scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd').read_text(encoding='utf-8'),
+          }
+          for key in ['project','main','coordinator']:
+              if 'V2.0.0-alpha.56' not in files[key]:
+                  raise SystemExit(key + ' version not synchronized')
+          for hero in ['zhouyu','zhangjiao','zhenji','sunshangxiang','huatuo','zhugeliang','diaochan']:
+              if f'"{hero}"' not in files['service']:
+                  raise SystemExit('missing elemental profile: ' + hero)
+          for token in ['"element":','"status_tags":','"synergy_tags":']:
+              if files['registry'].count(token) < 7:
+                  raise SystemExit('registry metadata incomplete: ' + token)
+          for token in ['HeroElementalBuildService.apply_named_hero_status', 'HeroElementalBuildService.install_runtime_tags']:
+              if token not in files['main']:
+                  raise SystemExit('main hero build integration missing: ' + token)
+          if '"red_cliff_flame":"zhouyu"' not in files['handler']:
+              raise SystemExit('Zhou Yu handler missing')
+          for token in ['func evolve_zhou_yu', 'HeroElementalBuildService.cleanse_player', 'host.call("apply_enemy_status"']:
+              if token not in files['evolution']:
+                  raise SystemExit('hero evolution integration missing: ' + token)
+          print('Alpha.56 static elemental hero build integration passed')
+          PY
+
+      - name: Commit synchronized runtime
+        run: |
+          if git diff --quiet; then
+            echo "No runtime changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd scripts/systems/hero/hero_content_registry.gd scripts/systems/hero/hero_skill_handler_registry.gd scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd
+          git commit -m "Alpha.56 connect elemental hero builds"
+          git push origin HEAD:feature/alpha56-elemental-hero-build-expansion
