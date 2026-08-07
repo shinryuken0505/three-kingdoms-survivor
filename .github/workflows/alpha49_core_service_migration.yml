@@ -10,8 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  migrate:
-    if: ${{ github.actor != 'github-actions[bot]' }}
+  core-service-migration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,15 +19,13 @@ jobs:
           fetch-depth: 0
 
       - name: Patch core runtime integration
-        shell: bash
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
           import re
 
           main_path = Path('scripts/main.gd')
           text = main_path.read_text(encoding='utf-8')
-
           anchor = 'const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")\n'
           service_preloads = (
               'const PlayerCombatService = preload("res://scripts/systems/player/player_combat_service.gd")\n'
@@ -58,7 +55,7 @@ jobs:
           if 'PlayerUpgradeService.weighted_pool(pool, skill_defs, chosen_identity, rng)' not in text:
               text, count = level_pattern.subn(r'\1\tpool = PlayerUpgradeService.weighted_pool(pool, skill_defs, chosen_identity, rng)', text, count=1)
               if count != 1:
-                  raise SystemExit(f'open_levelup patch count={count}')
+                  raise SystemExit('open_levelup patch failed')
 
           relic_old = '''\t\tvar rarity: String = str(relic_defs[rid].get("rarity", "common"))
 \t\tvar tier_price: Dictionary = {"common": 42, "rare": 125, "epic": 285, "legendary": 620}
@@ -87,9 +84,11 @@ jobs:
           if equipment_old in text:
               text = text.replace(equipment_old, equipment_new, 1)
 
-          heal_old = 'shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})'
-          heal_new = 'shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})'
-          text = text.replace(heal_old, heal_new, 1)
+          text = text.replace(
+              'shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})',
+              'shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})',
+              1
+          )
           main_path.write_text(text, encoding='utf-8')
 
           alpha40 = Path('scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd')
@@ -117,72 +116,61 @@ jobs:
 func evolve_zhang_fei'''
           text, count = pattern.subn(replacement, text, count=1)
           if count != 1:
-              raise SystemExit(f'alpha40 handler patch count={count}')
+              raise SystemExit('alpha40 handler patch failed')
           alpha40.write_text(text, encoding='utf-8')
 
           alpha45 = Path('scripts/systems/chapter/alpha45_chapter_branch_runtime.gd')
           text = alpha45.read_text(encoding='utf-8')
-          phase_anchor = '\tstate["phase"] = next_phase\n'
           if 'manager.call("set_flow_phase", next_phase)' not in text:
-              addition = '''\tstate["phase"] = next_phase
+              anchor = '\tstate["phase"] = next_phase\n'
+              repl = '''\tstate["phase"] = next_phase
 \tvar manager: Variant = host.get("chapter_manager")
 \tif manager != null and manager.has_method("set_flow_phase"):
 \t\tmanager.call("set_flow_phase", next_phase)
 '''
-              if phase_anchor not in text:
+              if anchor not in text:
                   raise SystemExit('missing Alpha45 phase anchor')
-              text = text.replace(phase_anchor, addition, 1)
-          branch_anchor = '\tstate["resolved_effects"] = effects.duplicate(true)\n\tapply_branch_effects(effects)\n'
+              text = text.replace(anchor, repl, 1)
           if 'manager.call("set_branch_result", branch_id, effects)' not in text:
-              branch_repl = '''\tstate["resolved_effects"] = effects.duplicate(true)
+              anchor = '\tstate["resolved_effects"] = effects.duplicate(true)\n\tapply_branch_effects(effects)\n'
+              repl = '''\tstate["resolved_effects"] = effects.duplicate(true)
 \tvar manager: Variant = host.get("chapter_manager")
 \tif manager != null and manager.has_method("set_branch_result"):
 \t\tmanager.call("set_branch_result", branch_id, effects)
 \tapply_branch_effects(effects)
 '''
-              if branch_anchor not in text:
+              if anchor not in text:
                   raise SystemExit('missing Alpha45 branch anchor')
-              text = text.replace(branch_anchor, branch_repl, 1)
+              text = text.replace(anchor, repl, 1)
           alpha45.write_text(text, encoding='utf-8')
 
           project = Path('project.godot')
-          text = project.read_text(encoding='utf-8').replace('V2.0.0-alpha.48', 'V2.0.0-alpha.49', 1)
-          project.write_text(text, encoding='utf-8')
+          project.write_text(project.read_text(encoding='utf-8').replace('V2.0.0-alpha.48', 'V2.0.0-alpha.49', 1), encoding='utf-8')
 
           coordinator = Path('scripts/core/alpha48_runtime_coordinator.gd')
-          text = coordinator.read_text(encoding='utf-8').replace('const TARGET_VERSION := "V2.0.0-alpha.48"', 'const TARGET_VERSION := "V2.0.0-alpha.49"', 1)
-          coordinator.write_text(text, encoding='utf-8')
+          coordinator.write_text(coordinator.read_text(encoding='utf-8').replace('const TARGET_VERSION := "V2.0.0-alpha.48"', 'const TARGET_VERSION := "V2.0.0-alpha.49"', 1), encoding='utf-8')
           PY
 
       - name: Static migration checks
-        shell: bash
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
           main = Path('scripts/main.gd').read_text(encoding='utf-8')
-          required = [
-              'V2.0.0-alpha.49',
-              'PlayerCombatService.perform_auto_attack',
-              'PlayerUpgradeService.weighted_pool',
-              'MerchantPricingService.relic_price',
-              'MerchantPricingService.equipment_price',
-          ]
-          for token in required:
-              assert token in main, token
-          a40 = Path('scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd').read_text(encoding='utf-8')
-          assert 'HeroSkillHandlerRegistry.handler_for' in a40
-          a45 = Path('scripts/systems/chapter/alpha45_chapter_branch_runtime.gd').read_text(encoding='utf-8')
-          assert 'set_flow_phase' in a45 and 'set_branch_result' in a45
+          for token in ['V2.0.0-alpha.49', 'PlayerCombatService.perform_auto_attack', 'PlayerUpgradeService.weighted_pool', 'MerchantPricingService.relic_price', 'MerchantPricingService.equipment_price']:
+              if token not in main:
+                  raise SystemExit('missing ' + token)
+          if 'HeroSkillHandlerRegistry.handler_for' not in Path('scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd').read_text(encoding='utf-8'):
+              raise SystemExit('hero handler registry not connected')
           chapter = Path('scripts/chapter_manager.gd').read_text(encoding='utf-8')
-          assert 'func flow_snapshot()' in chapter
-          assert 'func set_branch_result(' in chapter
+          if 'func flow_snapshot()' not in chapter or 'func set_branch_result(' not in chapter:
+              raise SystemExit('ChapterManager flow migration missing')
+          print('Alpha.49 static migration checks passed')
           PY
 
       - name: Commit migration
-        shell: bash
         run: |
           if git diff --quiet; then
-            echo "No migration changes needed"
+            echo "No migration changes needed."
             exit 0
           fi
           git config user.name "github-actions[bot]"
