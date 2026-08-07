@@ -1,0 +1,61 @@
+name: Alpha54 Elemental Status Synergies
+
+on:
+  push:
+    branches:
+      - feature/alpha54-elemental-status-synergies
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  elemental-synergies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha54-elemental-status-synergies
+          fetch-depth: 0
+
+      - name: Apply Alpha54 migration
+        run: python3 tools/alpha54_migrate.py
+
+      - name: Static synergy checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          project = Path('project.godot').read_text(encoding='utf-8')
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          status = Path('scripts/systems/combat/status_effect_service.gd').read_text(encoding='utf-8')
+          synergy = Path('scripts/systems/combat/elemental_synergy_service.gd').read_text(encoding='utf-8')
+          hud = Path('scripts/systems/hero/alpha36_37_roster_progression_hud.gd').read_text(encoding='utf-8')
+          coordinator = Path('scripts/core/alpha48_runtime_coordinator.gd').read_text(encoding='utf-8')
+          for text, label in [(project,'project'), (main,'main'), (coordinator,'coordinator')]:
+              if 'V2.0.0-alpha.54' not in text:
+                  raise SystemExit(label + ' version not synchronized')
+          for token in ['toxic_blaze', 'frost_charge', 'shock_chain', 'damage_multiplier', 'boss_resistance_text']:
+              if token not in synergy:
+                  raise SystemExit('synergy service missing: ' + token)
+          for token in ['"shock":"感電"', '"toxic_blaze":"劇毒灼燒"', 'ElementalSynergyService.tick_enemy', 'ElementalSynergyService.tick_boss']:
+              if token not in status:
+                  raise SystemExit('status service synergy missing: ' + token)
+          for token in ['ElementalSynergyService.damage_multiplier(enemies[index], source)', 'StatusEffectService.apply_enemy(self, index, "shock"', 'Alpha.54：異常聯動回歸']:
+              if token not in main:
+                  raise SystemExit('main synergy integration missing: ' + token)
+          if 'boss_resistance_text' not in hud:
+              raise SystemExit('boss resistance HUD missing')
+          print('Alpha.54 static elemental synergy integration passed')
+          PY
+
+      - name: Commit synchronized runtime
+        run: |
+          if git diff --quiet; then
+            echo "No runtime changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd scripts/systems/combat/status_effect_service.gd scripts/systems/hero/alpha36_37_roster_progression_hud.gd
+          git commit -m "Alpha.54 connect elemental status synergies"
+          git push origin HEAD:feature/alpha54-elemental-status-synergies
