@@ -38,32 +38,39 @@ def patch_main() -> None:
         if count != 1:
             raise SystemExit("open_levelup patch failed")
 
-    relic_old = '''\t\tvar rarity: String = str(relic_defs[rid].get("rarity", "common"))
-\t\tvar tier_price: Dictionary = {"common": 42, "rare": 125, "epic": 285, "legendary": 620}
-\t\tvar base: int = int(tier_price.get(rarity, 42)) + chapter_index * (8 if rarity == "common" else 18)
-\t\tif has_relic("jade"):
-\t\t\tbase = int(base * 0.88)
-\t\tbase = int(round(float(base) * price_mult))
-\t\tshop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})'''
-    relic_new = '''\t\tvar rarity: String = str(relic_defs[rid].get("rarity", "common"))
+    if "MerchantPricingService.relic_price" not in text:
+        relic_loop = re.compile(
+            r'\tfor rid_value in merchant_stock:\n.*?\n\tfor eid_value in merchant_equipment_stock:',
+            re.S,
+        )
+        relic_replacement = '''\tfor rid_value in merchant_stock:
+\t\tvar rid: String = str(rid_value)
+\t\tvar rarity: String = str(relic_defs[rid].get("rarity", "common"))
 \t\tvar chapter_number: int = int(current_chapter().get("index", 0)) + 1
 \t\tvar discount_mult: float = 0.88 if has_relic("jade") else 1.0
 \t\tvar base: int = MerchantPricingService.relic_price(merchant_kind, rarity, chapter_number, discount_mult)
-\t\tshop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})'''
-    if relic_old in text:
-        text = text.replace(relic_old, relic_new, 1)
+\t\tshop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})
+\tfor eid_value in merchant_equipment_stock:'''
+        text, count = relic_loop.subn(relic_replacement, text, count=1)
+        if count != 1:
+            raise SystemExit("relic pricing loop patch failed")
 
-    equipment_old = '''\t\tvar rarity: String = str(edef.get("rarity", "common"))
-\t\tvar equipment_price: Dictionary = {"common":80,"rare":180,"epic":360,"legendary":680,"mythic":980}
-\t\tvar price: int = int(equipment_price.get(rarity,80)) + int(current_chapter().get("index",0)) * 22
-\t\tprice = int(round(float(price) * equipment_effect("shop_price_mult", 1.0) * price_mult))
-\t\tshop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})'''
-    equipment_new = '''\t\tvar rarity: String = str(edef.get("rarity", "common"))
+    if "MerchantPricingService.equipment_price" not in text:
+        equipment_loop = re.compile(
+            r'\tfor eid_value in merchant_equipment_stock:\n.*?\n\tif bool\(mdef\.get\("sells_heal", true\)\):',
+            re.S,
+        )
+        equipment_replacement = '''\tfor eid_value in merchant_equipment_stock:
+\t\tvar eid: String = str(eid_value)
+\t\tvar edef: Dictionary = equipment_defs[eid]
+\t\tvar rarity: String = str(edef.get("rarity", "common"))
 \t\tvar chapter_number: int = int(current_chapter().get("index", 0)) + 1
 \t\tvar price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, chapter_number, equipment_effect("shop_price_mult", 1.0))
-\t\tshop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})'''
-    if equipment_old in text:
-        text = text.replace(equipment_old, equipment_new, 1)
+\t\tshop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})
+\tif bool(mdef.get("sells_heal", true)):'''
+        text, count = equipment_loop.subn(equipment_replacement, text, count=1)
+        if count != 1:
+            raise SystemExit("equipment pricing loop patch failed")
 
     text = text.replace(
         'shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})',
