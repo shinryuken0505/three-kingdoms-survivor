@@ -1,6 +1,8 @@
 class_name Alpha36RosterProgressionHud
 extends RefCounted
 
+const StatusEffectService = preload("res://scripts/systems/combat/status_effect_service.gd")
+
 const MAX_RECRUIT_VISITS: int = 5
 const ACTIVE_XP_RATE: float = 1.0
 const RESERVE_XP_RATE: float = 0.45
@@ -144,6 +146,9 @@ static func draw_integrated_hud(host: Variant) -> void:
 		var boss_bar: Rect2 = Rect2(boss_rect.position + Vector2(14, 29), Vector2(552, 10))
 		host.draw_rect(boss_bar, Color8(49, 29, 31), true)
 		host.draw_rect(Rect2(boss_bar.position, Vector2(boss_bar.size.x * boss_ratio, boss_bar.size.y)), Color8(190, 55, 49), true)
+		var boss_status_text: String = StatusEffectService.status_summary(host.boss, 4)
+		if boss_status_text != "":
+			host.draw_text(boss_status_text, Vector2(350, 137), 11, Color8(226, 198, 153), true, HORIZONTAL_ALIGNMENT_LEFT, 580)
 	var bottom: Rect2 = Rect2(52.0, 614.0, 1176.0, 88.0)
 	host.draw_panel(bottom, Color(0.018, 0.024, 0.027, 0.95), Color8(105, 109, 102), 1.4)
 	var hp: float = float(host.player.get("hp", 0.0))

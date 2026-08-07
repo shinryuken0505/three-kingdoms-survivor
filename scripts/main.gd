@@ -9,6 +9,7 @@ const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rul
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
 const PlayerCombatService = preload("res://scripts/systems/player/player_combat_service.gd")
 const PlayerSignaturePassiveService = preload("res://scripts/systems/player/player_signature_passive_service.gd")
+const StatusEffectService = preload("res://scripts/systems/combat/status_effect_service.gd")
 const PlayerUpgradeService = preload("res://scripts/systems/player/player_upgrade_service.gd")
 const MerchantPricingService = preload("res://scripts/systems/merchant/merchant_pricing_service.gd")
 const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rules.gd")
@@ -41,7 +42,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.52"
+const GAME_VERSION: String = "V2.0.0-alpha.53"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -3510,11 +3511,17 @@ func spawn_enemy(kind: String, pos: Vector2) -> void:
 			"poison": 0.0,
 			"poison_time": 0.0,
 			"poison_tick": 0.0,
+			"burn": 0.0,
+			"burn_time": 0.0,
+			"burn_tick": 0.0,
+			"burn_stacks": 0,
 			"slow": 0.0,
 			"stun": 0.0,
+			"confuse": 0.0,
 			"charm": 0.0,
 			"marked": 0.0,
 			"armor_break": 0.0,
+			"status_effects": {},
 			"knock": Vector2.ZERO,
 			"elite": kind in ["elite", "shield", "drummer", "tactician"],
 			"elite_name": str(data.get("elite_name", "精英敵將")),
@@ -3551,23 +3558,13 @@ func update_enemies(delta: float) -> void:
 		e["shoot_cd"] = max(0.0, float(e["shoot_cd"]) - delta)
 		e["ability_cd"] = max(0.0, float(e.get("ability_cd", 0.0)) - delta)
 		e["telegraph"] = max(0.0, float(e["telegraph"]) - delta)
-		e["slow"] = max(0.0, float(e["slow"]) - delta)
-		e["stun"] = max(0.0, float(e["stun"]) - delta)
-		e["charm"] = max(0.0, float(e["charm"]) - delta)
 		e["marked"] = max(0.0, float(e["marked"]) - delta)
-		e["armor_break"] = max(0.0, float(e["armor_break"]) - delta)
-		if float(e["poison_time"]) > 0.0:
-			e["poison_time"] = float(e["poison_time"]) - delta
-			e["poison_tick"] = float(e["poison_tick"]) - delta
-			if float(e["poison_tick"]) <= 0.0:
-				e["poison_tick"] = 0.65
-				var pdmg: float = (2.8 + float(e["poison"]) * 1.35) * float(player["poison_power"])
-				var live_index: int = damage_enemy(cursor, pdmg, "poison", false)
-				if live_index < 0:
-					cursor -= 1
-					continue
-				cursor = live_index
-				e = enemies[cursor]
+		var status_index: int = StatusEffectService.tick_enemy(self, cursor, delta)
+		if status_index < 0:
+			cursor -= 1
+			continue
+		cursor = status_index
+		e = enemies[cursor]
 		if float(e["hp"]) <= 0.0:
 			kill_enemy(cursor)
 			cursor -= 1
@@ -4638,11 +4635,15 @@ func kill_enemy(index: int) -> void:
 
 
 func apply_poison(index: int, amount: float) -> void:
-	if index < 0 or index >= enemies.size():
-		return
-	enemies[index]["poison"] = min(8.0, float(enemies[index]["poison"]) + amount)
-	enemies[index]["poison_time"] = max(float(enemies[index]["poison_time"]), 5.2)
-	enemies[index]["poison_tick"] = min(float(enemies[index]["poison_tick"]), 0.2)
+	StatusEffectService.apply_enemy(self, index, "poison", 5.2, max(0.15, amount), max(1, int(ceil(amount))))
+
+
+func apply_enemy_status(index: int, effect_id: String, duration: float, potency: float = 1.0, stacks: int = 1) -> bool:
+	return StatusEffectService.apply_enemy(self, index, effect_id, duration, potency, stacks)
+
+
+func apply_boss_status(effect_id: String, duration: float, potency: float = 1.0, stacks: int = 1) -> bool:
+	return StatusEffectService.apply_boss(self, effect_id, duration, potency, stacks)
 
 
 func spread_poison(pos: Vector2, radius: float, stacks: float) -> void:
@@ -6956,6 +6957,12 @@ func update_boss(delta: float) -> void:
 	# 任何結算、死亡、選單或已擊敗狀態都不允許重新生成。
 	if screen != "game":
 		return
+	if not boss.is_empty():
+		StatusEffectService.tick_boss(self, delta)
+		if boss.is_empty():
+			return
+		if StatusEffectService.boss_stunned(boss):
+			return
 	if chapter_manager.request_boss_intro(elapsed):
 		spawn_boss()
 		return
