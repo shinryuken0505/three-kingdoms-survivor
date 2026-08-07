@@ -1,52 +1,62 @@
-name: Alpha51 Player Signature Passives
+name: Alpha52 Player Signature Upgrades
 
 on:
   push:
     branches:
-      - feature/alpha51-player-signature-passives
+      - feature/alpha52-player-signature-upgrades
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  player-signature-passives:
+  player-signature-upgrades:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/alpha51-player-signature-passives
+          ref: feature/alpha52-player-signature-upgrades
           fetch-depth: 0
 
-      - name: Apply Alpha51 migration
-        run: python3 tools/alpha51_migrate.py
+      - name: Apply Alpha52 migration
+        run: python3 tools/alpha52_migrate.py
 
-      - name: Static passive checks
+      - name: Static upgrade checks
         run: |
           python3 - <<'PY'
           from pathlib import Path
           project = Path('project.godot').read_text(encoding='utf-8')
           main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          upgrades = Path('scripts/systems/player/player_upgrade_service.gd').read_text(encoding='utf-8')
           passive = Path('scripts/systems/player/player_signature_passive_service.gd').read_text(encoding='utf-8')
-          if 'V2.0.0-alpha.51' not in project or 'V2.0.0-alpha.51' not in main:
-              raise SystemExit('Alpha.51 version not synchronized')
+          registry = Path('scripts/systems/player/player_archetype_registry.gd').read_text(encoding='utf-8')
+          if 'V2.0.0-alpha.52' not in project or 'V2.0.0-alpha.52' not in main:
+              raise SystemExit('Alpha.52 version not synchronized')
           for token in [
-              'PlayerSignaturePassiveService.incoming_damage_multiplier',
-              'PlayerSignaturePassiveService.on_projectile_enemy_hit',
-              'PlayerSignaturePassiveService.on_projectile_boss_hit',
+              'sig_blade_wave', 'sig_wide_arc', 'sig_blade_guard',
+              'sig_eagle_eye', 'sig_split_arrow', 'sig_piercing_focus',
+              'sig_orb_burst', 'sig_arcane_resonance', 'sig_frost_seal',
           ]:
-              if token not in main:
-                  raise SystemExit('main passive integration missing: ' + token)
-          for token in ['blade_guard', 'eagle_eye', 'arcane_flow', 'arcane_burst_profile']:
-              if token not in passive:
-                  raise SystemExit('passive definition missing: ' + token)
-          melee = Path('scripts/systems/player/combat_handlers/melee_arc_handler.gd').read_text(encoding='utf-8')
-          ranged = Path('scripts/systems/player/combat_handlers/ranged_arrow_handler.gd').read_text(encoding='utf-8')
-          strategy = Path('scripts/systems/player/combat_handlers/strategy_orb_handler.gd').read_text(encoding='utf-8')
-          assert 'alpha51_blade_chain' in melee and 'blade_wave' in melee
-          assert 'eagle_eye_damage_multiplier' in ranged
-          assert 'alpha51_arcane_orb' in strategy
-          print('Alpha.51 static passive integration passed')
+              if token not in upgrades:
+                  raise SystemExit('signature upgrade missing: ' + token)
+          if 'install_signature_definitions' not in main:
+              raise SystemExit('signature definitions not installed into skill pool')
+          if 'return ["swordsman", "archer", "strategist"]' not in main:
+              raise SystemExit('three protagonist selection order not active')
+          if '戰術共鳴' not in main or 'PlayerUpgradeService.signature_summary' not in main:
+              raise SystemExit('protagonist TAB information not connected')
+          if 'LEGACY_ALIASES' not in registry:
+              raise SystemExit('legacy protagonist aliases missing')
+          if 'sig_blade_guard' not in passive or 'sig_eagle_eye' not in passive or 'alpha52_burst_level' not in passive:
+              raise SystemExit('signature upgrades not consumed by passive service')
+          for path, token in [
+              ('scripts/systems/player/combat_handlers/melee_arc_handler.gd', 'sig_blade_wave'),
+              ('scripts/systems/player/combat_handlers/ranged_arrow_handler.gd', 'sig_split_arrow'),
+              ('scripts/systems/player/combat_handlers/strategy_orb_handler.gd', 'sig_arcane_resonance'),
+          ]:
+              if token not in Path(path).read_text(encoding='utf-8'):
+                  raise SystemExit(path + ' missing ' + token)
+          print('Alpha.52 static protagonist upgrade integration passed')
           PY
 
       - name: Commit synchronized runtime
@@ -58,5 +68,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd
-          git commit -m "Alpha.51 connect signature passives to gameplay"
-          git push origin HEAD:feature/alpha51-player-signature-passives
+          git commit -m "Alpha.52 connect protagonist signature upgrades"
+          git push origin HEAD:feature/alpha52-player-signature-upgrades
