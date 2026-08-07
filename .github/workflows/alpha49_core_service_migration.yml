@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   migrate:
-    if: github.actor != 'github-actions[bot]'
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +20,9 @@ jobs:
           fetch-depth: 0
 
       - name: Patch core runtime integration
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           import re
 
@@ -89,7 +90,6 @@ jobs:
           heal_old = 'shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})'
           heal_new = 'shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})'
           text = text.replace(heal_old, heal_new, 1)
-
           main_path.write_text(text, encoding='utf-8')
 
           alpha40 = Path('scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd')
@@ -152,10 +152,12 @@ func evolve_zhang_fei'''
           coordinator = Path('scripts/core/alpha48_runtime_coordinator.gd')
           text = coordinator.read_text(encoding='utf-8').replace('const TARGET_VERSION := "V2.0.0-alpha.48"', 'const TARGET_VERSION := "V2.0.0-alpha.49"', 1)
           coordinator.write_text(text, encoding='utf-8')
+          PY
 
       - name: Static migration checks
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           main = Path('scripts/main.gd').read_text(encoding='utf-8')
           required = [
@@ -174,8 +176,10 @@ func evolve_zhang_fei'''
           chapter = Path('scripts/chapter_manager.gd').read_text(encoding='utf-8')
           assert 'func flow_snapshot()' in chapter
           assert 'func set_branch_result(' in chapter
+          PY
 
       - name: Commit migration
+        shell: bash
         run: |
           if git diff --quiet; then
             echo "No migration changes needed"
