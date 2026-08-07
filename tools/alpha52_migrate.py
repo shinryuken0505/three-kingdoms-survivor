@@ -25,18 +25,10 @@ def main() -> None:
     replace_once("scripts/main.gd", 'Rect2(r.position + Vector2(22, 370), Vector2(234, 94)),', 'Rect2(r.position + Vector2(22, 355), Vector2(332, 66)),')
     replace_once("scripts/main.gd", '\t\tdraw_text(\n\t\t\t"武器：%s" % weapon_display_name(str(data["weapon"])),\n\t\t\tr.position + Vector2(22, 476),', '\t\tdraw_text("專屬：%s" % PlayerUpgradeService.passive_name(id), r.position + Vector2(22, 438), 15, Color8(169, 213, 185), true, HORIZONTAL_ALIGNMENT_LEFT, 332)\n\t\tdraw_text(\n\t\t\t"武器：%s" % weapon_display_name(str(data["weapon"])),\n\t\t\tr.position + Vector2(22, 476),')
     replace_once("scripts/main.gd", 'draw_text("流派共鳴：%s｜%s（%d）" % [build_now["name"], build_resonance_stage_name(build_resonance_stage(int(build_now["score"]))), build_now["score"]], Vector2(100, 425), 19, build_now["color"], true)', 'draw_text("戰術共鳴：%s｜%s（%d）" % [build_now["name"], build_resonance_stage_name(build_resonance_stage(int(build_now["score"]))), build_now["score"]], Vector2(100, 425), 19, build_now["color"], true)\n\tdraw_text("主角專屬：%s" % PlayerUpgradeService.passive_name(chosen_identity), Vector2(100, 468), 17, Color8(176, 218, 188), true)\n\tdraw_wrapped("專屬進化：%s" % PlayerUpgradeService.signature_summary(chosen_identity, skill_levels), Rect2(100, 492, 1020, 54), 16, Color8(205, 211, 202), 23.0)')
-
-    # Alpha.52 follow-up: canonical protagonists need safe legacy visual aliases until dedicated assets exist.
-    replace_once(
-        "scripts/main.gd",
-        'func weapon_display_name(id: String) -> String:\n\tmatch id:',
-        'func identity_visual_id(id: String) -> String:\n\tif id == "archer" and (not portrait_tex.has(id) or not sprite_tex.has(id)):\n\t\treturn "hunter"\n\tif id == "strategist" and (not portrait_tex.has(id) or not sprite_tex.has(id)):\n\t\treturn "poisoner"\n\treturn id\n\n\nfunc weapon_display_name(id: String) -> String:\n\tmatch id:',
-    )
+    replace_once("scripts/main.gd", 'func weapon_display_name(id: String) -> String:\n\tmatch id:', 'func identity_visual_id(id: String) -> String:\n\tif id == "archer" and (not portrait_tex.has(id) or not sprite_tex.has(id)):\n\t\treturn "hunter"\n\tif id == "strategist" and (not portrait_tex.has(id) or not sprite_tex.has(id)):\n\t\treturn "poisoner"\n\treturn id\n\n\nfunc weapon_display_name(id: String) -> String:\n\tmatch id:')
     replace_once("scripts/main.gd", '\t\t"rings":\n\t\t\treturn "紅袖環刃"', '\t\t"rings":\n\t\t\treturn "紅袖環刃"\n\t\t"talisman":\n\t\t\treturn "符籙法器"')
     replace_once("scripts/main.gd", 'draw_texture_contain(hero_portrait(str(id)), pr)', 'draw_texture_contain(hero_portrait(identity_visual_id(id)), pr)')
     replace_once("scripts/main.gd", 'draw_sprite_pose(sprite_tex[chosen_identity], pp + player_offset, PLAYER_SPRITE_SCALE, int(elapsed * 8.0) % 4, pm, player_rotation, player_stretch)', 'draw_sprite_pose(sprite_tex[identity_visual_id(chosen_identity)], pp + player_offset, PLAYER_SPRITE_SCALE, int(elapsed * 8.0) % 4, pm, player_rotation, player_stretch)')
-
-    # Reflow TAB summary so the new signature lines do not overlap the old tactical/relic/stat rows.
     replace_once("scripts/main.gd", 'draw_wrapped(build_bonus_description(), Rect2(100, 448, 1020, 46), 16, Color8(196, 207, 193), 22.0)', 'draw_wrapped(build_bonus_description(), Rect2(100, 446, 1020, 40), 15, Color8(196, 207, 193), 20.0)')
     replace_once("scripts/main.gd", 'Vector2(100, 468), 17,', 'Vector2(100, 490), 17,')
     replace_once("scripts/main.gd", 'Rect2(100, 492, 1020, 54), 16,', 'Rect2(100, 514, 1020, 38), 15,')
@@ -45,6 +37,8 @@ def main() -> None:
     replace_once("scripts/main.gd", 'Vector2(100, 585),\n\t\t18,', 'Vector2(100, 624),\n\t\t15,')
     replace_once("scripts/main.gd", 'chosen_identity == "hunter"', 'chosen_identity in ["hunter", "archer"]')
     replace_once("scripts/main.gd", 'chosen_identity == "poisoner" or reserve_heroes.has("zhangjiao")', 'chosen_identity in ["poisoner", "strategist"] or reserve_heroes.has("zhangjiao")')
+    # Remaining build resonance legacy condition also needs the canonical strategist ID.
+    replace_once("scripts/main.gd", '\telif chosen_identity == "poisoner":\n\t\tscores["poison"] += 2', '\telif chosen_identity in ["poisoner", "strategist"]:\n\t\tscores["poison"] += 2')
 
     main_text = Path("scripts/main.gd").read_text(encoding="utf-8")
     required = [
@@ -56,6 +50,7 @@ def main() -> None:
         "func identity_visual_id",
         'return "符籙法器"',
         'sprite_tex[identity_visual_id(chosen_identity)]',
+        'chosen_identity in ["poisoner", "strategist"]',
     ]
     for token in required:
         if token not in main_text:
