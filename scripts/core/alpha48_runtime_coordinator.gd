@@ -5,7 +5,7 @@ extends Node
 # 舊 Runtime 仍保留原本 /root/<Name> 節點名稱，避免既有跨模組路徑失效；
 # 但 project.godot 只需要維護 GameEvents + 本協調器兩個入口。
 
-const TARGET_VERSION := "V2.0.0-alpha.48"
+const TARGET_VERSION := "V2.0.0-alpha.49"
 
 const MODULE_SPECS: Array[Dictionary] = [
 	{"name":"Alpha41ArchitectureGuard", "script":preload("res://scripts/core/alpha41_architecture_guard.gd")},

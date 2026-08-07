@@ -96,6 +96,9 @@ func transition_to(next_phase: String) -> bool:
 		push_warning("Alpha45 rejected chapter transition %s -> %s" % [previous, next_phase])
 		return false
 	state["phase"] = next_phase
+	var manager: Variant = host.get("chapter_manager")
+	if manager != null and manager.has_method("set_flow_phase"):
+		manager.call("set_flow_phase", next_phase)
 	var history: Array = state.get("phase_history", []) as Array
 	history.append(next_phase)
 	state["phase_history"] = history
@@ -135,6 +138,9 @@ func select_branch(branch_id: String) -> bool:
 	var effects: Dictionary = definition.get("effects", {}) as Dictionary
 	state["selected_branch"] = branch_id
 	state["resolved_effects"] = effects.duplicate(true)
+	var manager: Variant = host.get("chapter_manager")
+	if manager != null and manager.has_method("set_branch_result"):
+		manager.call("set_branch_result", branch_id, effects)
 	apply_branch_effects(effects)
 	var events: Node = get_node_or_null("/root/GameEvents")
 	if events != null and events.has_method("publish"):

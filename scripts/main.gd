@@ -7,6 +7,9 @@ const ChapterManagerScript = preload("res://scripts/chapter_manager.gd")
 const HistoryEventData = preload("res://scripts/history_event_data.gd")
 const HistoryRouteRules = preload("res://scripts/systems/world/history_route_rules.gd")
 const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")
+const PlayerCombatService = preload("res://scripts/systems/player/player_combat_service.gd")
+const PlayerUpgradeService = preload("res://scripts/systems/player/player_upgrade_service.gd")
+const MerchantPricingService = preload("res://scripts/systems/merchant/merchant_pricing_service.gd")
 const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rules.gd")
 const Alpha19HeroMastery = preload("res://scripts/systems/hero/alpha19_hero_mastery.gd")
 const Alpha19HistoryInfluence = preload("res://scripts/systems/world/alpha19_history_influence.gd")
@@ -37,7 +40,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.48"
+const GAME_VERSION: String = "V2.0.0-alpha.49"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -3128,6 +3131,11 @@ func try_dash() -> void:
 		boss["dodge_cd"] = 3.5
 
 func perform_auto_attack() -> void:
+	if not PlayerCombatService.perform_auto_attack(self, chosen_identity, Callable(self, "perform_auto_attack_legacy")):
+		perform_auto_attack_legacy()
+
+
+func perform_auto_attack_legacy() -> void:
 	var target: Vector2 = nearest_enemy_position(player["pos"])
 	if target.x > 1.0e19:
 		return
@@ -6577,23 +6585,19 @@ func open_shop() -> void:
 	for rid_value in merchant_stock:
 		var rid: String = str(rid_value)
 		var rarity: String = str(relic_defs[rid].get("rarity", "common"))
-		var chapter_index: int = int(current_chapter().get("index", 0))
-		var tier_price: Dictionary = {"common": 42, "rare": 125, "epic": 285, "legendary": 620}
-		var base: int = int(tier_price.get(rarity, 42)) + chapter_index * (8 if rarity == "common" else 18)
-		if has_relic("jade"):
-			base = int(base * 0.88)
-		base = int(round(float(base) * price_mult))
+		var chapter_number: int = int(current_chapter().get("index", 0)) + 1
+		var discount_mult: float = 0.88 if has_relic("jade") else 1.0
+		var base: int = MerchantPricingService.relic_price(merchant_kind, rarity, chapter_number, discount_mult)
 		shop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})
 	for eid_value in merchant_equipment_stock:
 		var eid: String = str(eid_value)
 		var edef: Dictionary = equipment_defs[eid]
 		var rarity: String = str(edef.get("rarity", "common"))
-		var equipment_price: Dictionary = {"common":80,"rare":180,"epic":360,"legendary":680,"mythic":980}
-		var price: int = int(equipment_price.get(rarity,80)) + int(current_chapter().get("index",0)) * 22
-		price = int(round(float(price) * equipment_effect("shop_price_mult", 1.0) * price_mult))
+		var chapter_number: int = int(current_chapter().get("index", 0)) + 1
+		var price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, chapter_number, equipment_effect("shop_price_mult", 1.0))
 		shop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})
 	if bool(mdef.get("sells_heal", true)):
-		shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})
+		shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})
 	shop_choices.append({"kind": "config", "id": "config", "price": 0})
 	option_index = 0
 	previous_screen = "game"
@@ -6651,7 +6655,7 @@ func open_levelup() -> void:
 	for sid in skill_defs:
 		if skill_level(sid) < int(skill_defs[sid]["max"]):
 			pool.append(sid)
-	pool.shuffle()
+	pool = PlayerUpgradeService.weighted_pool(pool, skill_defs, chosen_identity, rng)
 	var count: int = min(5, 3 + (1 if has_relic("artofwar") else 0))
 	if reserve_heroes.has("caocao") and rng.randf() < 0.35:
 		count = min(5, count + 1)

@@ -1,5 +1,8 @@
 extends Node
 
+const HeroContentRegistry = preload("res://scripts/systems/hero/hero_content_registry.gd")
+const HeroSkillHandlerRegistry = preload("res://scripts/systems/hero/hero_skill_handler_registry.gd")
+
 const MAX_LEVEL: int = 8
 const LEVEL_3: int = 3
 const LEVEL_5: int = 5
@@ -70,8 +73,10 @@ func add_ring(center: Vector2, radius: float, color: Color) -> void:
 func apply_skill_evolution(hero_id: String, level: int) -> void:
 	if level < LEVEL_3:
 		return
-	var key: String = compact_id(hero_id)
-	match key:
+	var hero_def: Dictionary = HeroContentRegistry.get_hero(hero_id)
+	var active_skill: String = str(hero_def.get("active_skill", ""))
+	var handler: String = HeroSkillHandlerRegistry.handler_for(active_skill)
+	match handler:
 		"zhangfei": evolve_zhang_fei(hero_id, level)
 		"guanyu": evolve_guan_yu(hero_id, level)
 		"zhaoyun": evolve_zhao_yun(hero_id, level)
