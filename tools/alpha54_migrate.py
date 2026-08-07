@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,7 +19,6 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-# Version synchronization.
 project = read("project.godot").replace("V2.0.0-alpha.53", "V2.0.0-alpha.54")
 write("project.godot", project)
 
@@ -35,34 +33,16 @@ main = replace_once(
     "elemental synergy preload",
 )
 
-# Armor break now modifies actual physical damage; lightning damage applies Shock.
 if "ElementalSynergyService.damage_multiplier(enemies[index], source)" not in main:
-    pattern = r'(func damage_enemy\(index: int, damage: float, source: String, crit: bool[^\n]*\) -> int:\n)'
-    replacement = (
-        r'\1'
-        '\tif index >= 0 and index < enemies.size():\n'
-        '\t\tdamage *= ElementalSynergyService.damage_multiplier(enemies[index], source)\n'
-        '\t\tif ElementalSynergyService.is_lightning_source(source):\n'
-        '\t\t\tStatusEffectService.apply_enemy(self, index, "shock", 2.4, 0.22, 1)\n'
-    )
-    main, count = re.subn(pattern, replacement, main, count=1)
-    if count != 1:
-        raise SystemExit("Alpha54 migration could not patch damage_enemy")
+    old = 'func damage_enemy(index: int, amount: float, source: String, crit: bool) -> int:\n\tif index < 0 or index >= enemies.size():\n\t\treturn -1\n'
+    new = old + '\tamount *= ElementalSynergyService.damage_multiplier(enemies[index], source)\n\tif ElementalSynergyService.is_lightning_source(source):\n\t\tStatusEffectService.apply_enemy(self, index, "shock", 2.4, 0.22, 1)\n'
+    main = replace_once(main, old, new, "damage_enemy integration")
 
 if "ElementalSynergyService.damage_multiplier(boss, source)" not in main:
-    pattern = r'(func damage_boss\(damage: float, source: String, crit: bool[^\n]*\) -> void:\n)'
-    replacement = (
-        r'\1'
-        '\tif not boss.is_empty():\n'
-        '\t\tdamage *= ElementalSynergyService.damage_multiplier(boss, source)\n'
-        '\t\tif ElementalSynergyService.is_lightning_source(source):\n'
-        '\t\t\tStatusEffectService.apply_boss(self, "shock", 2.0, 0.18, 1)\n'
-    )
-    main, count = re.subn(pattern, replacement, main, count=1)
-    if count != 1:
-        raise SystemExit("Alpha54 migration could not patch damage_boss")
+    old = 'func damage_boss(amount: float, source: String, crit: bool) -> void:\n\tif boss.is_empty() or float(boss.get("hp", 0.0)) <= 0.0:\n\t\treturn\n'
+    new = old + '\tamount *= ElementalSynergyService.damage_multiplier(boss, source)\n\tif ElementalSynergyService.is_lightning_source(source):\n\t\tStatusEffectService.apply_boss(self, "shock", 2.0, 0.18, 1)\n'
+    main = replace_once(main, old, new, "damage_boss integration")
 
-# Compact enemy status dots: maximum three, so high-density battles stay readable.
 status_feedback = '''\t# Alpha.54：敵人異常狀態以最多三個小圓點呈現，避免文字與特效淹沒戰場。\n\tfor status_enemy in enemies:\n\t\tvar status_pos: Vector2 = world_to_screen(status_enemy.get("pos", Vector2.ZERO))\n\t\tif not Rect2(-80, -80, VIEW.x + 160, VIEW.y + 160).has_point(status_pos):\n\t\t\tcontinue\n\t\tvar status_map_value: Variant = status_enemy.get("status_effects", {})\n\t\tif not status_map_value is Dictionary:\n\t\t\tcontinue\n\t\tvar status_map: Dictionary = status_map_value as Dictionary\n\t\tvar status_slot: int = 0\n\t\tfor status_id in StatusEffectService.EFFECT_ORDER:\n\t\t\tif not status_map.has(status_id):\n\t\t\t\tcontinue\n\t\t\tvar status_data: Dictionary = status_map[status_id] as Dictionary\n\t\t\tif float(status_data.get("duration", 0.0)) <= 0.0:\n\t\t\t\tcontinue\n\t\t\tvar dot_pos: Vector2 = status_pos + Vector2(-12.0 + float(status_slot) * 12.0, -31.0 if not bool(status_enemy.get("elite", false)) else -58.0)\n\t\t\tdraw_circle(dot_pos, 4.0, StatusEffectService.effect_color(status_id))\n\t\t\tdraw_circle(dot_pos, 5.5, Color(1, 1, 1, 0.35), false, 1.0)\n\t\t\tstatus_slot += 1\n\t\t\tif status_slot >= 3:\n\t\t\t\tbreak\n'''
 if "Alpha.54：敵人異常狀態以最多三個小圓點呈現" not in main:
     marker = "\t# Boss\n\tif not boss.is_empty():"
@@ -70,7 +50,6 @@ if "Alpha.54：敵人異常狀態以最多三個小圓點呈現" not in main:
         raise SystemExit("Alpha54 migration could not find Boss drawing marker")
     main = main.replace(marker, status_feedback + marker, 1)
 
-# Extend project self-test with actual status reaction checks.
 self_test_block = '''\t# Alpha.54：異常聯動回歸。\n\tenemies.clear()\n\tspawn_enemy("peasant", player["pos"] + Vector2(72.0, 0.0))\n\tapply_enemy_status(0, "burn", 3.0, 1.2, 1)\n\tapply_enemy_status(0, "poison", 3.0, 1.2, 1)\n\tvar reaction_statuses: Dictionary = enemies[0].get("status_effects", {}) as Dictionary\n\tif not reaction_statuses.has("toxic_blaze"):\n\t\tself_test_fail("Alpha.54 劇毒灼燒未觸發")\n\t\treturn\n\tapply_enemy_status(0, "slow", 2.0, 0.25, 1)\n\tapply_enemy_status(0, "slow", 2.0, 0.25, 1)\n\tapply_enemy_status(0, "slow", 2.0, 0.25, 1)\n\treaction_statuses = enemies[0].get("status_effects", {}) as Dictionary\n\tif not reaction_statuses.has("stun"):\n\t\tself_test_fail("Alpha.54 冰封聯動未觸發")\n\t\treturn\n'''
 if "Alpha.54：異常聯動回歸" not in main:
     marker = '\thit_stop_timer = 0.0\n\thit_stop_cooldown = 0.0\n'
@@ -80,7 +59,6 @@ if "Alpha.54：異常聯動回歸" not in main:
 
 write("scripts/main.gd", main)
 
-# StatusEffectService: register Shock + reaction display and hook the synergy service.
 status = read("scripts/systems/combat/status_effect_service.gd")
 status = replace_once(
     status,
@@ -120,7 +98,6 @@ if "ElementalSynergyService.tick_boss(host, delta)" not in status:
 
 write("scripts/systems/combat/status_effect_service.gd", status)
 
-# Boss HUD: show resistance info under active status summary.
 hud = read("scripts/systems/hero/alpha36_37_roster_progression_hud.gd")
 hud = replace_once(
     hud,
