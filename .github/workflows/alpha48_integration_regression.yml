@@ -1,0 +1,97 @@
+name: Alpha48 Integration Regression
+
+on:
+  push:
+    branches:
+      - feature/alpha48-runtime-integration-cleanup
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integration-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha48-runtime-integration-cleanup
+          fetch-depth: 0
+
+      - name: Sync main version constant
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/main.gd')
+          text = path.read_text(encoding='utf-8')
+          old = 'const GAME_VERSION: String = "V2.0.0-alpha.37"'
+          new = 'const GAME_VERSION: String = "V2.0.0-alpha.48"'
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('GAME_VERSION constant has unexpected value')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Static integration checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          project = Path('project.godot').read_text(encoding='utf-8')
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          coordinator = Path('scripts/core/alpha48_runtime_coordinator.gd').read_text(encoding='utf-8')
+          required = [
+              'V2.0.0-alpha.48',
+              'Alpha48RuntimeCoordinator="*res://scripts/core/alpha48_runtime_coordinator.gd"',
+          ]
+          for token in required:
+              if token not in project:
+                  raise SystemExit(f'project.godot missing {token}')
+          if 'const GAME_VERSION: String = "V2.0.0-alpha.48"' not in main:
+              raise SystemExit('main.gd version not synchronized')
+          legacy_autoloads = [
+              'Alpha36Alpha37Runtime=', 'Alpha38FormationProgressionUI=',
+              'Alpha39SignatureProgression=', 'Alpha40HeroSkillEvolution=',
+              'Alpha41ArchitectureGuard=', 'Alpha42PlayerArchetypes=',
+              'Alpha43DataDrivenHeroes=', 'Alpha44RelicMerchantRegistry=',
+              'Alpha45ChapterBranchFlow=', 'Alpha46BranchResultUI=',
+              'Alpha47BranchEffectScopeGuard=', 'Alpha47BranchGameplayEffects=',
+          ]
+          leaked = [x for x in legacy_autoloads if x in project]
+          if leaked:
+              raise SystemExit(f'legacy autoload entries remain: {leaked}')
+          runtime_names = [
+              'Alpha36Alpha37Runtime', 'Alpha38FormationProgressionUI',
+              'Alpha39SignatureProgression', 'Alpha40HeroSkillEvolution',
+              'Alpha41ArchitectureGuard', 'Alpha42PlayerArchetypes',
+              'Alpha43DataDrivenHeroes', 'Alpha44RelicMerchantRegistry',
+              'Alpha45ChapterBranchFlow', 'Alpha46BranchResultUI',
+              'Alpha47BranchEffectScopeGuard', 'Alpha47BranchGameplayEffects',
+          ]
+          missing = [x for x in runtime_names if x not in coordinator]
+          if missing:
+              raise SystemExit(f'coordinator missing runtime names: {missing}')
+          for path in [
+              'scripts/core/game_event_bus.gd',
+              'scripts/core/alpha48_runtime_coordinator.gd',
+              'scripts/systems/player/player_archetype_registry.gd',
+              'scripts/systems/hero/hero_content_registry.gd',
+              'scripts/systems/relic/relic_content_registry.gd',
+              'scripts/systems/merchant/merchant_content_registry.gd',
+              'scripts/systems/chapter/chapter_branch_registry.gd',
+          ]:
+              if not Path(path).exists():
+                  raise SystemExit(f'missing integration file: {path}')
+          print('Alpha.48 static integration regression passed')
+          PY
+
+      - name: Commit synchronized version
+        run: |
+          if git diff --quiet; then
+            echo "No version sync commit required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          git commit -m "Alpha.48 synchronize main game version"
+          git push origin HEAD:feature/alpha48-runtime-integration-cleanup
