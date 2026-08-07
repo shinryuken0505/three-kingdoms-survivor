@@ -2,6 +2,7 @@ extends Node
 
 const HeroContentRegistry = preload("res://scripts/systems/hero/hero_content_registry.gd")
 const HeroSkillHandlerRegistry = preload("res://scripts/systems/hero/hero_skill_handler_registry.gd")
+const HeroElementalBuildService = preload("res://scripts/systems/hero/hero_elemental_build_service.gd")
 
 const MAX_LEVEL: int = 8
 const LEVEL_3: int = 3
@@ -83,6 +84,7 @@ func apply_skill_evolution(hero_id: String, level: int) -> void:
 		"zhugeliang": evolve_zhuge_liang(hero_id, level)
 		"huatuo": evolve_hua_tuo(hero_id, level)
 		"sunshangxiang": evolve_sun_shang_xiang(hero_id, level)
+		"zhouyu": evolve_zhou_yu(hero_id, level)
 		"diaochan": evolve_diao_chan(hero_id, level)
 		"lvbu": evolve_lv_bu(hero_id, level)
 		_: evolve_general(hero_id, level)
@@ -163,6 +165,7 @@ func evolve_hua_tuo(hero_id: String, level: int) -> void:
 		player["alpha40_damage_reduction"] = 0.18
 		player["alpha40_damage_reduction_time"] = 3.0
 	host.set("player", player)
+	HeroElementalBuildService.cleanse_player(host, level)
 	add_ring(player_position(), 110.0, Color(0.47, 0.95, 0.66, 0.80))
 	show_evolution(hero_id, level, "青囊護體" if level >= LEVEL_5 else "青囊回春")
 
@@ -184,6 +187,17 @@ func evolve_sun_shang_xiang(hero_id: String, level: int) -> void:
 	host.set("enemies", enemies)
 	add_ring(center, 92.0, Color(1.0, 0.56, 0.74, 0.76))
 	show_evolution(hero_id, level, "穿雲六連射" if level >= LEVEL_8 else "弓腰連射")
+
+func evolve_zhou_yu(hero_id: String, level: int) -> void:
+	var radius: float = 158.0 + float(level) * 12.0
+	apply_area_damage(radius, 12.0 + float(level) * 4.2, 0.0)
+	apply_control(radius, 2.8 + float(level) * 0.15, "burn")
+	if level >= LEVEL_5:
+		apply_control(radius + 42.0, 2.4, "burn")
+	if level >= LEVEL_8:
+		apply_control(radius, 2.2, "armor_break")
+	add_ring(player_position(), radius, Color(1.0, 0.38, 0.16, 0.78))
+	show_evolution(hero_id, level, "赤壁燎原" if level >= LEVEL_8 else "烈焰擴張")
 
 func evolve_diao_chan(hero_id: String, level: int) -> void:
 	var radius: float = 145.0 + float(level) * 10.0
@@ -231,12 +245,12 @@ func apply_control(radius: float, duration: float, kind: String) -> void:
 		var enemy: Dictionary = enemies[index] as Dictionary
 		if enemy_position(enemy).distance_to(center) > radius:
 			continue
-		match kind:
-			"stun": enemy["stun"] = max(float(enemy.get("stun", 0.0)), duration)
-			"slow": enemy["slow"] = max(float(enemy.get("slow", 0.0)), duration)
-			"confuse": enemy["confuse"] = max(float(enemy.get("confuse", 0.0)), duration)
-		enemies[index] = enemy
-	host.set("enemies", enemies)
+		if host.has_method("apply_enemy_status"):
+			var potency: float = 1.0
+			if kind == "slow": potency = 0.30
+			elif kind == "burn": potency = 0.90
+			elif kind == "armor_break": potency = 0.16
+			host.call("apply_enemy_status", index, kind, duration, potency, 1)
 
 func show_evolution(hero_id: String, level: int, effect_name: String) -> void:
 	var heroes: Dictionary = host.get("heroes") as Dictionary

@@ -8,6 +8,7 @@ const HANDLERS: Dictionary = {
 	"eight_trigrams":"zhugeliang",
 	"qingnang_heal":"huatuo",
 	"bow_waist_volley":"sunshangxiang",
+	"red_cliff_flame":"zhouyu",
 	"closed_moon_charm":"diaochan",
 	"peerless_rampage":"lvbu",
 }
