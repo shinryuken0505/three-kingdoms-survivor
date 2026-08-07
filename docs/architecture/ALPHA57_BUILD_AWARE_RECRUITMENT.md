@@ -28,3 +28,7 @@ Numeric weights and internal scoring are intentionally not shown.
 ## Extension rule
 
 New generals should define `element`, `status_tags`, and `synergy_tags` in `HeroContentRegistry`. New relic-driven affinity should be added to the service tag map instead of adding hero-specific branches to `main.gd`.
+
+## Verification trigger
+
+This documentation-only commit intentionally runs the repository checks against the post-migration Alpha.57 runtime.
