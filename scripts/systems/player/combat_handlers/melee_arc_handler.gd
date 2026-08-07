@@ -1,6 +1,11 @@
 class_name MeleeArcHandler
 extends RefCounted
 
+static func upgrade_level(host: Object, skill_id: String) -> int:
+	if host != null and host.has_method("skill_level"):
+		return int(host.call("skill_level", skill_id))
+	return 0
+
 static func execute(host: Object, damage: float) -> bool:
 	if host == null or not host.has_method("nearest_enemy_position") or not host.has_method("damage_arc"):
 		return false
@@ -19,6 +24,8 @@ static func execute(host: Object, damage: float) -> bool:
 	if direction.length_squared() <= 0.001:
 		direction = Vector2.RIGHT
 	var level: int = max(1, int(player.get("level", 1)))
+	var wave_lv: int = upgrade_level(host, "sig_blade_wave")
+	var arc_lv: int = upgrade_level(host, "sig_wide_arc")
 	var chain: int = int(player.get("alpha51_blade_chain", 0)) + 1
 	player["alpha51_blade_chain"] = chain
 	player["facing"] = direction
@@ -26,16 +33,20 @@ static func execute(host: Object, damage: float) -> bool:
 
 	if host.has_method("play_combat_motif"):
 		host.call("play_combat_motif", "slash", 0.98)
-	var radius: float = 126.0 + min(32.0, float(level - 1) * 4.0)
-	var arc_width: float = 1.56 + (0.16 if level >= 5 else 0.0) + (0.12 if level >= 8 else 0.0)
+	var radius: float = 126.0 + min(32.0, float(level - 1) * 4.0) + float(arc_lv) * 12.0
+	var arc_width: float = 1.56 + (0.16 if level >= 5 else 0.0) + (0.12 if level >= 8 else 0.0) + float(arc_lv) * 0.10
 	var attack_origin: Vector2 = origin + direction * 34.0
-	host.call("damage_arc", attack_origin, direction.angle(), radius, arc_width, damage * 1.14, 62.0 + float(level) * 2.0)
+	host.call("damage_arc", attack_origin, direction.angle(), radius, arc_width, damage * (1.14 + float(arc_lv) * 0.025), 62.0 + float(level) * 2.0)
 
-	# 刀客進化：連斬第三擊自 Lv4 起會放出短程劍氣；Lv8 劍氣更強且可多穿透一名敵人。
-	if level >= 4 and chain % 3 == 0 and host.has_method("spawn_player_projectile"):
-		host.call("spawn_player_projectile", "blade_wave", direction, damage * (0.62 if level < 8 else 0.78), 455.0, 0.72, 9.0, 1 if level < 8 else 2, 0.0)
+	# 專屬進化可提早解鎖劍氣；高階縮短至每兩刀一次，並提高傷害與穿透。
+	var wave_unlocked: bool = level >= 4 or wave_lv > 0
+	var wave_interval: int = 2 if wave_lv >= 2 else 3
+	if wave_unlocked and chain % wave_interval == 0 and host.has_method("spawn_player_projectile"):
+		var wave_damage: float = damage * ((0.62 if level < 8 else 0.78) + float(wave_lv) * 0.10)
+		var wave_pierce: int = (1 if level < 8 else 2) + (1 if wave_lv >= 3 else 0)
+		host.call("spawn_player_projectile", "blade_wave", direction, wave_damage, 455.0 + float(wave_lv) * 18.0, 0.72, 9.0 + float(wave_lv), wave_pierce, 0.0)
 		if host.has_method("spawn_ring"):
-			host.call("spawn_ring", attack_origin + direction * 34.0, Color8(132, 232, 177), 58.0, 0.22)
+			host.call("spawn_ring", attack_origin + direction * 34.0, Color8(132, 232, 177), 58.0 + float(wave_lv) * 5.0, 0.22)
 
 	var zones_value: Variant = host.get("zones")
 	if zones_value is Array:
@@ -47,6 +58,6 @@ static func execute(host: Object, damage: float) -> bool:
 		})
 		host.set("zones", zones)
 	if host.has_method("spawn_ring"):
-		host.call("spawn_ring", attack_origin + direction * 24.0, Color8(255, 226, 145), 48.0, 0.24)
+		host.call("spawn_ring", attack_origin + direction * 24.0, Color8(255, 226, 145), 48.0 + float(arc_lv) * 3.0, 0.24)
 	host.set("screen_shake", max(float(host.get("screen_shake")), 3.2))
 	return true
