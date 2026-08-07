@@ -47,7 +47,10 @@ func install_modules() -> void:
 		if script_value == null:
 			push_warning("Alpha48 missing script for %s" % module_name)
 			continue
-		var instance: Node = script_value.new()
+		var instance := script_value.new() as Node
+		if instance == null:
+			push_warning("Alpha48 could not instantiate %s" % module_name)
+			continue
 		instance.name = module_name
 		root.add_child(instance)
 		module_nodes[module_name] = instance
@@ -73,10 +76,10 @@ func _process(_delta: float) -> void:
 
 func module(module_name: String) -> Node:
 	if module_nodes.has(module_name):
-		var node: Node = module_nodes[module_name]
-		if is_instance_valid(node):
+		var node := module_nodes[module_name] as Node
+		if node != null and is_instance_valid(node):
 			return node
-	return get_tree().root.get_node_or_null(module_name)
+	return get_tree().root.get_node_or_null(module_name) as Node
 
 func publish_integration_state() -> void:
 	var player: Dictionary = host.get("player") as Dictionary
