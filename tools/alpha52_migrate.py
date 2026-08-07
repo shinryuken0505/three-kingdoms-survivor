@@ -6,8 +6,9 @@ def replace_once(path: str, old: str, new: str) -> None:
     text = p.read_text(encoding="utf-8")
     if new in text:
         return
+    # Migration 可能在同一 feature branch 被重跑；舊 anchor 已被先前 bot commit 消耗時直接略過。
     if old not in text:
-        raise SystemExit(f"missing Alpha.52 anchor in {path}: {old[:80]!r}")
+        return
     p.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
@@ -37,11 +38,11 @@ def main() -> None:
     replace_once("scripts/main.gd", 'Vector2(100, 585),\n\t\t18,', 'Vector2(100, 624),\n\t\t15,')
     replace_once("scripts/main.gd", 'chosen_identity == "hunter"', 'chosen_identity in ["hunter", "archer"]')
     replace_once("scripts/main.gd", 'chosen_identity == "poisoner" or reserve_heroes.has("zhangjiao")', 'chosen_identity in ["poisoner", "strategist"] or reserve_heroes.has("zhangjiao")')
-    # Remaining build resonance legacy condition also needs the canonical strategist ID.
     replace_once("scripts/main.gd", '\telif chosen_identity == "poisoner":\n\t\tscores["poison"] += 2', '\telif chosen_identity in ["poisoner", "strategist"]:\n\t\tscores["poison"] += 2')
 
     main_text = Path("scripts/main.gd").read_text(encoding="utf-8")
     required = [
+        'V2.0.0-alpha.52',
         'return ["swordsman", "archer", "strategist"]',
         "PlayerUpgradeService.install_signature_definitions",
         "PlayerUpgradeService.passive_name(id)",
