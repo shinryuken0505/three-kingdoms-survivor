@@ -36,8 +36,8 @@ jobs:
                   raise SystemExit(label + ' version not synchronized')
           for token in [
               'apply_enemy', 'tick_enemy', 'apply_boss', 'tick_boss',
-              'boss_resistance', 'status_summary', 'burn', 'poison',
-              'slow', 'stun', 'confuse', 'charm', 'armor_break',
+              'boss_resistance', 'status_summary', 'static func validate',
+              'burn', 'poison', 'slow', 'stun', 'confuse', 'charm', 'armor_break',
           ]:
               if token not in service:
                   raise SystemExit('status service missing: ' + token)
