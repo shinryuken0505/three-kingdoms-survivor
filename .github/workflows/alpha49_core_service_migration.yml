@@ -1,0 +1,188 @@
+name: Alpha49 Core Service Migration
+
+on:
+  push:
+    branches:
+      - feature/alpha49-core-service-migration
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha49-core-service-migration
+          fetch-depth: 0
+
+      - name: Patch core runtime integration
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          main_path = Path('scripts/main.gd')
+          text = main_path.read_text(encoding='utf-8')
+
+          anchor = 'const HeroProgressionRules = preload("res://scripts/systems/hero/hero_progression_rules.gd")\n'
+          service_preloads = (
+              'const PlayerCombatService = preload("res://scripts/systems/player/player_combat_service.gd")\n'
+              'const PlayerUpgradeService = preload("res://scripts/systems/player/player_upgrade_service.gd")\n'
+              'const MerchantPricingService = preload("res://scripts/systems/merchant/merchant_pricing_service.gd")\n'
+          )
+          if 'const PlayerCombatService' not in text:
+              if anchor not in text:
+                  raise SystemExit('missing HeroProgressionRules preload anchor')
+              text = text.replace(anchor, anchor + service_preloads, 1)
+
+          text = text.replace('const GAME_VERSION: String = "V2.0.0-alpha.48"', 'const GAME_VERSION: String = "V2.0.0-alpha.49"', 1)
+
+          if 'func perform_auto_attack_legacy() -> void:' not in text:
+              marker = 'func perform_auto_attack() -> void:\n'
+              if marker not in text:
+                  raise SystemExit('missing perform_auto_attack')
+              wrapper = (
+                  'func perform_auto_attack() -> void:\n'
+                  '\tif not PlayerCombatService.perform_auto_attack(self, chosen_identity, Callable(self, "perform_auto_attack_legacy")):\n'
+                  '\t\tperform_auto_attack_legacy()\n\n\n'
+                  'func perform_auto_attack_legacy() -> void:\n'
+              )
+              text = text.replace(marker, wrapper, 1)
+
+          level_pattern = re.compile(r'(func open_levelup\(\) -> void:.*?\tfor sid in skill_defs:\n\t\tif skill_level\(sid\) < int\(skill_defs\[sid\]\["max"\]\):\n\t\t\tpool\.append\(sid\)\n)\tpool\.shuffle\(\)', re.S)
+          if 'PlayerUpgradeService.weighted_pool(pool, skill_defs, chosen_identity, rng)' not in text:
+              text, count = level_pattern.subn(r'\1\tpool = PlayerUpgradeService.weighted_pool(pool, skill_defs, chosen_identity, rng)', text, count=1)
+              if count != 1:
+                  raise SystemExit(f'open_levelup patch count={count}')
+
+          relic_old = '''\t\tvar rarity: String = str(relic_defs[rid].get("rarity", "common"))
+\t\tvar tier_price: Dictionary = {"common": 42, "rare": 125, "epic": 285, "legendary": 620}
+\t\tvar base: int = int(tier_price.get(rarity, 42)) + chapter_index * (8 if rarity == "common" else 18)
+\t\tif has_relic("jade"):
+\t\t\tbase = int(base * 0.88)
+\t\tbase = int(round(float(base) * price_mult))
+\t\tshop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})'''
+          relic_new = '''\t\tvar rarity: String = str(relic_defs[rid].get("rarity", "common"))
+\t\tvar chapter_number: int = int(current_chapter().get("index", 0)) + 1
+\t\tvar discount_mult: float = 0.88 if has_relic("jade") else 1.0
+\t\tvar base: int = MerchantPricingService.relic_price(merchant_kind, rarity, chapter_number, discount_mult)
+\t\tshop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})'''
+          if relic_old in text:
+              text = text.replace(relic_old, relic_new, 1)
+
+          equipment_old = '''\t\tvar rarity: String = str(edef.get("rarity", "common"))
+\t\tvar equipment_price: Dictionary = {"common":80,"rare":180,"epic":360,"legendary":680,"mythic":980}
+\t\tvar price: int = int(equipment_price.get(rarity,80)) + int(current_chapter().get("index",0)) * 22
+\t\tprice = int(round(float(price) * equipment_effect("shop_price_mult", 1.0) * price_mult))
+\t\tshop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})'''
+          equipment_new = '''\t\tvar rarity: String = str(edef.get("rarity", "common"))
+\t\tvar chapter_number: int = int(current_chapter().get("index", 0)) + 1
+\t\tvar price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, chapter_number, equipment_effect("shop_price_mult", 1.0))
+\t\tshop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})'''
+          if equipment_old in text:
+              text = text.replace(equipment_old, equipment_new, 1)
+
+          heal_old = 'shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})'
+          heal_new = 'shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})'
+          text = text.replace(heal_old, heal_new, 1)
+
+          main_path.write_text(text, encoding='utf-8')
+
+          alpha40 = Path('scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd')
+          text = alpha40.read_text(encoding='utf-8')
+          if 'HeroSkillHandlerRegistry' not in text:
+              text = text.replace('extends Node\n', 'extends Node\n\nconst HeroContentRegistry = preload("res://scripts/systems/hero/hero_content_registry.gd")\nconst HeroSkillHandlerRegistry = preload("res://scripts/systems/hero/hero_skill_handler_registry.gd")\n', 1)
+          pattern = re.compile(r'func apply_skill_evolution\(hero_id: String, level: int\) -> void:\n.*?\nfunc evolve_zhang_fei', re.S)
+          replacement = '''func apply_skill_evolution(hero_id: String, level: int) -> void:
+\tif level < LEVEL_3:
+\t\treturn
+\tvar hero_def: Dictionary = HeroContentRegistry.get_hero(hero_id)
+\tvar active_skill: String = str(hero_def.get("active_skill", ""))
+\tvar handler: String = HeroSkillHandlerRegistry.handler_for(active_skill)
+\tmatch handler:
+\t\t"zhangfei": evolve_zhang_fei(hero_id, level)
+\t\t"guanyu": evolve_guan_yu(hero_id, level)
+\t\t"zhaoyun": evolve_zhao_yun(hero_id, level)
+\t\t"zhugeliang": evolve_zhuge_liang(hero_id, level)
+\t\t"huatuo": evolve_hua_tuo(hero_id, level)
+\t\t"sunshangxiang": evolve_sun_shang_xiang(hero_id, level)
+\t\t"diaochan": evolve_diao_chan(hero_id, level)
+\t\t"lvbu": evolve_lv_bu(hero_id, level)
+\t\t_: evolve_general(hero_id, level)
+
+func evolve_zhang_fei'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'alpha40 handler patch count={count}')
+          alpha40.write_text(text, encoding='utf-8')
+
+          alpha45 = Path('scripts/systems/chapter/alpha45_chapter_branch_runtime.gd')
+          text = alpha45.read_text(encoding='utf-8')
+          phase_anchor = '\tstate["phase"] = next_phase\n'
+          if 'manager.call("set_flow_phase", next_phase)' not in text:
+              addition = '''\tstate["phase"] = next_phase
+\tvar manager: Variant = host.get("chapter_manager")
+\tif manager != null and manager.has_method("set_flow_phase"):
+\t\tmanager.call("set_flow_phase", next_phase)
+'''
+              if phase_anchor not in text:
+                  raise SystemExit('missing Alpha45 phase anchor')
+              text = text.replace(phase_anchor, addition, 1)
+          branch_anchor = '\tstate["resolved_effects"] = effects.duplicate(true)\n\tapply_branch_effects(effects)\n'
+          if 'manager.call("set_branch_result", branch_id, effects)' not in text:
+              branch_repl = '''\tstate["resolved_effects"] = effects.duplicate(true)
+\tvar manager: Variant = host.get("chapter_manager")
+\tif manager != null and manager.has_method("set_branch_result"):
+\t\tmanager.call("set_branch_result", branch_id, effects)
+\tapply_branch_effects(effects)
+'''
+              if branch_anchor not in text:
+                  raise SystemExit('missing Alpha45 branch anchor')
+              text = text.replace(branch_anchor, branch_repl, 1)
+          alpha45.write_text(text, encoding='utf-8')
+
+          project = Path('project.godot')
+          text = project.read_text(encoding='utf-8').replace('V2.0.0-alpha.48', 'V2.0.0-alpha.49', 1)
+          project.write_text(text, encoding='utf-8')
+
+          coordinator = Path('scripts/core/alpha48_runtime_coordinator.gd')
+          text = coordinator.read_text(encoding='utf-8').replace('const TARGET_VERSION := "V2.0.0-alpha.48"', 'const TARGET_VERSION := "V2.0.0-alpha.49"', 1)
+          coordinator.write_text(text, encoding='utf-8')
+
+      - name: Static migration checks
+        shell: python
+        run: |
+          from pathlib import Path
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          required = [
+              'V2.0.0-alpha.49',
+              'PlayerCombatService.perform_auto_attack',
+              'PlayerUpgradeService.weighted_pool',
+              'MerchantPricingService.relic_price',
+              'MerchantPricingService.equipment_price',
+          ]
+          for token in required:
+              assert token in main, token
+          a40 = Path('scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd').read_text(encoding='utf-8')
+          assert 'HeroSkillHandlerRegistry.handler_for' in a40
+          a45 = Path('scripts/systems/chapter/alpha45_chapter_branch_runtime.gd').read_text(encoding='utf-8')
+          assert 'set_flow_phase' in a45 and 'set_branch_result' in a45
+          chapter = Path('scripts/chapter_manager.gd').read_text(encoding='utf-8')
+          assert 'func flow_snapshot()' in chapter
+          assert 'func set_branch_result(' in chapter
+
+      - name: Commit migration
+        run: |
+          if git diff --quiet; then
+            echo "No migration changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd scripts/systems/chapter/alpha45_chapter_branch_runtime.gd scripts/core/alpha48_runtime_coordinator.gd project.godot
+          git commit -m "Alpha.49 connect core services to gameplay"
+          git push origin HEAD:feature/alpha49-core-service-migration
