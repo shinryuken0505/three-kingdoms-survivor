@@ -40,20 +40,6 @@ main = replace_once(
     "relic definition install",
 )
 
-# Unified wrapper means every status source can trigger relic synergies.
-main = replace_once(
-    main,
-    'func apply_enemy_status(index: int, effect_id: String, duration: float, potency: float = 1.0, stacks: int = 1) -> bool:\n\treturn StatusEffectService.apply_enemy(self, index, effect_id, duration, potency, stacks)\n',
-    'func apply_enemy_status(index: int, effect_id: String, duration: float, potency: float = 1.0, stacks: int = 1) -> bool:\n\tvar applied: bool = StatusEffectService.apply_enemy(self, index, effect_id, duration, potency, stacks)\n\tif applied:\n\t\tRelicStatusSynergyService.on_enemy_status_applied(self, index, StatusEffectService.canonical_effect(effect_id))\n\treturn applied\n',
-    "enemy status wrapper",
-)
-main = replace_once(
-    main,
-    'func apply_boss_status(effect_id: String, duration: float, potency: float = 1.0, stacks: int = 1) -> bool:\n\treturn StatusEffectService.apply_boss(self, effect_id, duration, potency, stacks)\n',
-    'func apply_boss_status(effect_id: String, duration: float, potency: float = 1.0, stacks: int = 1) -> bool:\n\tvar applied: bool = StatusEffectService.apply_boss(self, effect_id, duration, potency, stacks)\n\tif applied:\n\t\tRelicStatusSynergyService.on_boss_status_applied(self, StatusEffectService.canonical_effect(effect_id))\n\treturn applied\n',
-    "boss status wrapper",
-)
-
 # Damage multipliers and named-hero status routing.
 if "RelicStatusSynergyService.damage_multiplier(self, e, source)" not in main:
     marker = '\tvar uid: int = int(e.get("uid", -1))\n'
@@ -72,13 +58,29 @@ if "RelicStatusSynergyService.on_enemy_killed(self, e)" not in main:
     main = replace_once(main, marker, insert, "enemy kill relic hook")
 
 # Runtime tick handles delayed flame detonation safely through damage_enemy().
-if "RelicStatusSynergyService.tick_enemy(self, live_index, delta)" not in main:
-    # StatusEffectService tick already owns live_index safety in update_enemies.
-    pattern = r'(live_index\s*=\s*StatusEffectService\.tick_enemy\(self,\s*live_index,\s*delta\)\n)'
-    replacement = r'\1\t\tlive_index = RelicStatusSynergyService.tick_enemy(self, live_index, delta)\n'
-    main, count = re.subn(pattern, replacement, main, count=1)
-    if count != 1:
-        raise SystemExit("Alpha55 migration could not patch enemy relic tick")
+if "RelicStatusSynergyService.tick_enemy(self, cursor, delta)" not in main:
+    old = (
+        '\t\tvar status_index: int = StatusEffectService.tick_enemy(self, cursor, delta)\n'
+        '\t\tif status_index < 0:\n'
+        '\t\t\tcursor -= 1\n'
+        '\t\t\tcontinue\n'
+        '\t\tcursor = status_index\n'
+        '\t\te = enemies[cursor]\n'
+    )
+    new = (
+        '\t\tvar status_index: int = StatusEffectService.tick_enemy(self, cursor, delta)\n'
+        '\t\tif status_index < 0:\n'
+        '\t\t\tcursor -= 1\n'
+        '\t\t\tcontinue\n'
+        '\t\tcursor = status_index\n'
+        '\t\tvar relic_status_index: int = RelicStatusSynergyService.tick_enemy(self, cursor, delta)\n'
+        '\t\tif relic_status_index < 0:\n'
+        '\t\t\tcursor -= 1\n'
+        '\t\t\tcontinue\n'
+        '\t\tcursor = relic_status_index\n'
+        '\t\te = enemies[cursor]\n'
+    )
+    main = replace_once(main, old, new, "enemy relic tick")
 
 write("scripts/main.gd", main)
 
@@ -98,7 +100,7 @@ synergy = replace_once(
 )
 write("scripts/systems/combat/elemental_synergy_service.gd", synergy)
 
-# Direct StatusEffectService users (older hero/runtime code) also reach relic hooks.
+# Direct StatusEffectService users (older hero/runtime code) also reach relic hooks exactly once.
 status = read("scripts/systems/combat/status_effect_service.gd")
 status = replace_once(
     status,
@@ -106,7 +108,6 @@ status = replace_once(
     'const ElementalSynergyService = preload("res://scripts/systems/combat/elemental_synergy_service.gd")\nconst RelicStatusSynergyService = preload("res://scripts/systems/relic/relic_status_synergy_service.gd")\n',
     "status relic preload",
 )
-# Avoid duplicate application: StatusEffectService invokes relic hooks; main wrapper only remains compatible if direct service code changes later.
 status = replace_once(
     status,
     '\tElementalSynergyService.on_enemy_status_applied(host, index, key)\n\treturn true\n',
