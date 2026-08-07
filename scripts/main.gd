@@ -6585,16 +6585,16 @@ func open_shop() -> void:
 	for rid_value in merchant_stock:
 		var rid: String = str(rid_value)
 		var rarity: String = str(relic_defs[rid].get("rarity", "common"))
-		var chapter_number: int = int(current_chapter().get("index", 0)) + 1
+		var relic_chapter_number: int = int(current_chapter().get("index", 0)) + 1
 		var discount_mult: float = 0.88 if has_relic("jade") else 1.0
-		var base: int = MerchantPricingService.relic_price(merchant_kind, rarity, chapter_number, discount_mult)
+		var base: int = MerchantPricingService.relic_price(merchant_kind, rarity, relic_chapter_number, discount_mult)
 		shop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})
 	for eid_value in merchant_equipment_stock:
 		var eid: String = str(eid_value)
 		var edef: Dictionary = equipment_defs[eid]
 		var rarity: String = str(edef.get("rarity", "common"))
-		var chapter_number: int = int(current_chapter().get("index", 0)) + 1
-		var price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, chapter_number, equipment_effect("shop_price_mult", 1.0))
+		var equipment_chapter_number: int = int(current_chapter().get("index", 0)) + 1
+		var price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, equipment_chapter_number, equipment_effect("shop_price_mult", 1.0))
 		shop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})
 	if bool(mdef.get("sells_heal", true)):
 		shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})
