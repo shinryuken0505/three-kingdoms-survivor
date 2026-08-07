@@ -30,25 +30,20 @@ def patch_main() -> None:
         text = text.replace(marker, wrapper, 1)
 
     level_pattern = re.compile(
-        r'(func open_levelup\(\) -> void:.*?\tfor sid in skill_defs:\n\t\tif skill_level\(sid\) < int\(skill_defs\[sid\]\["max"\]\):\n\t\t\tpool\.append\(sid\)\n)\tpool\.shuffle\(\)',
-        re.S,
-    )
+        r'(func open_levelup\(\) -> void:.*?\tfor sid in skill_defs:\n\t\tif skill_level\(sid\) < int\(skill_defs\[sid\]\["max"\]\):\n\t\t\tpool\.append\(sid\)\n)\tpool\.shuffle\(\)', re.S)
     if "PlayerUpgradeService.weighted_pool(pool, skill_defs, chosen_identity, rng)" not in text:
         text, count = level_pattern.subn(r"\1\tpool = PlayerUpgradeService.weighted_pool(pool, skill_defs, chosen_identity, rng)", text, count=1)
         if count != 1:
             raise SystemExit("open_levelup patch failed")
 
     if "MerchantPricingService.relic_price" not in text:
-        relic_loop = re.compile(
-            r'\tfor rid_value in merchant_stock:\n.*?\n\tfor eid_value in merchant_equipment_stock:',
-            re.S,
-        )
+        relic_loop = re.compile(r'\tfor rid_value in merchant_stock:\n.*?\n\tfor eid_value in merchant_equipment_stock:', re.S)
         relic_replacement = '''\tfor rid_value in merchant_stock:
 \t\tvar rid: String = str(rid_value)
 \t\tvar rarity: String = str(relic_defs[rid].get("rarity", "common"))
-\t\tvar chapter_number: int = int(current_chapter().get("index", 0)) + 1
+\t\tvar relic_chapter_number: int = int(current_chapter().get("index", 0)) + 1
 \t\tvar discount_mult: float = 0.88 if has_relic("jade") else 1.0
-\t\tvar base: int = MerchantPricingService.relic_price(merchant_kind, rarity, chapter_number, discount_mult)
+\t\tvar base: int = MerchantPricingService.relic_price(merchant_kind, rarity, relic_chapter_number, discount_mult)
 \t\tshop_choices.append({"kind": "relic", "id": rid, "price": base, "rarity": rarity})
 \tfor eid_value in merchant_equipment_stock:'''
         text, count = relic_loop.subn(relic_replacement, text, count=1)
@@ -56,27 +51,33 @@ def patch_main() -> None:
             raise SystemExit("relic pricing loop patch failed")
 
     if "MerchantPricingService.equipment_price" not in text:
-        equipment_loop = re.compile(
-            r'\tfor eid_value in merchant_equipment_stock:\n.*?\n\tif bool\(mdef\.get\("sells_heal", true\)\):',
-            re.S,
-        )
+        equipment_loop = re.compile(r'\tfor eid_value in merchant_equipment_stock:\n.*?\n\tif bool\(mdef\.get\("sells_heal", true\)\):', re.S)
         equipment_replacement = '''\tfor eid_value in merchant_equipment_stock:
 \t\tvar eid: String = str(eid_value)
 \t\tvar edef: Dictionary = equipment_defs[eid]
 \t\tvar rarity: String = str(edef.get("rarity", "common"))
-\t\tvar chapter_number: int = int(current_chapter().get("index", 0)) + 1
-\t\tvar price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, chapter_number, equipment_effect("shop_price_mult", 1.0))
+\t\tvar equipment_chapter_number: int = int(current_chapter().get("index", 0)) + 1
+\t\tvar price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, equipment_chapter_number, equipment_effect("shop_price_mult", 1.0))
 \t\tshop_choices.append({"kind":"equipment","id":eid,"price":price,"rarity":rarity})
 \tif bool(mdef.get("sells_heal", true)):'''
         text, count = equipment_loop.subn(equipment_replacement, text, count=1)
         if count != 1:
             raise SystemExit("equipment pricing loop patch failed")
 
+    # Harden an already-migrated file too, so rerunning the tool is idempotent and removes duplicate local names.
     text = text.replace(
-        'shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})',
-        'shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})',
+        'var chapter_number: int = int(current_chapter().get("index", 0)) + 1\n\t\tvar discount_mult: float = 0.88 if has_relic("jade") else 1.0\n\t\tvar base: int = MerchantPricingService.relic_price(merchant_kind, rarity, chapter_number, discount_mult)',
+        'var relic_chapter_number: int = int(current_chapter().get("index", 0)) + 1\n\t\tvar discount_mult: float = 0.88 if has_relic("jade") else 1.0\n\t\tvar base: int = MerchantPricingService.relic_price(merchant_kind, rarity, relic_chapter_number, discount_mult)',
         1,
     )
+    text = text.replace(
+        'var chapter_number: int = int(current_chapter().get("index", 0)) + 1\n\t\tvar price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, chapter_number, equipment_effect("shop_price_mult", 1.0))',
+        'var equipment_chapter_number: int = int(current_chapter().get("index", 0)) + 1\n\t\tvar price: int = MerchantPricingService.equipment_price(merchant_kind, rarity, equipment_chapter_number, equipment_effect("shop_price_mult", 1.0))',
+        1,
+    )
+    text = text.replace(
+        'shop_choices.append({"kind": "heal", "id": "heal", "price": int(round(18.0 * price_mult))})',
+        'shop_choices.append({"kind": "heal", "id": "heal", "price": MerchantPricingService.heal_price(merchant_kind, int(current_chapter().get("index", 0)) + 1)})', 1)
     path.write_text(text, encoding="utf-8")
 
 
@@ -84,13 +85,10 @@ def patch_alpha40() -> None:
     path = Path("scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd")
     text = path.read_text(encoding="utf-8")
     if "HeroSkillHandlerRegistry" not in text:
-        text = text.replace(
-            "extends Node\n",
-            'extends Node\n\nconst HeroContentRegistry = preload("res://scripts/systems/hero/hero_content_registry.gd")\nconst HeroSkillHandlerRegistry = preload("res://scripts/systems/hero/hero_skill_handler_registry.gd")\n',
-            1,
-        )
-    pattern = re.compile(r"func apply_skill_evolution\(hero_id: String, level: int\) -> void:\n.*?\nfunc evolve_zhang_fei", re.S)
-    replacement = '''func apply_skill_evolution(hero_id: String, level: int) -> void:
+        text = text.replace("extends Node\n", 'extends Node\n\nconst HeroContentRegistry = preload("res://scripts/systems/hero/hero_content_registry.gd")\nconst HeroSkillHandlerRegistry = preload("res://scripts/systems/hero/hero_skill_handler_registry.gd")\n', 1)
+    if "HeroSkillHandlerRegistry.handler_for" not in text:
+        pattern = re.compile(r"func apply_skill_evolution\(hero_id: String, level: int\) -> void:\n.*?\nfunc evolve_zhang_fei", re.S)
+        replacement = '''func apply_skill_evolution(hero_id: String, level: int) -> void:
 \tif level < LEVEL_3:
 \t\treturn
 \tvar hero_def: Dictionary = HeroContentRegistry.get_hero(hero_id)
@@ -108,9 +106,9 @@ def patch_alpha40() -> None:
 \t\t_: evolve_general(hero_id, level)
 
 func evolve_zhang_fei'''
-    text, count = pattern.subn(replacement, text, count=1)
-    if count != 1:
-        raise SystemExit("alpha40 handler patch failed")
+        text, count = pattern.subn(replacement, text, count=1)
+        if count != 1:
+            raise SystemExit("alpha40 handler patch failed")
     path.write_text(text, encoding="utf-8")
 
 
@@ -150,13 +148,7 @@ def patch_versions() -> None:
 
 def validate() -> None:
     main = Path("scripts/main.gd").read_text(encoding="utf-8")
-    for token in [
-        "V2.0.0-alpha.49",
-        "PlayerCombatService.perform_auto_attack",
-        "PlayerUpgradeService.weighted_pool",
-        "MerchantPricingService.relic_price",
-        "MerchantPricingService.equipment_price",
-    ]:
+    for token in ["V2.0.0-alpha.49", "PlayerCombatService.perform_auto_attack", "PlayerUpgradeService.weighted_pool", "MerchantPricingService.relic_price", "MerchantPricingService.equipment_price", "relic_chapter_number", "equipment_chapter_number"]:
         if token not in main:
             raise SystemExit("missing " + token)
     alpha40 = Path("scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd").read_text(encoding="utf-8")
