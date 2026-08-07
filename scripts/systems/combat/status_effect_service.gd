@@ -2,6 +2,7 @@ class_name StatusEffectService
 extends RefCounted
 
 const ElementalSynergyService = preload("res://scripts/systems/combat/elemental_synergy_service.gd")
+const RelicStatusSynergyService = preload("res://scripts/systems/relic/relic_status_synergy_service.gd")
 
 const EFFECT_ORDER: Array[String] = ["toxic_blaze", "burn", "poison", "shock", "slow", "stun", "confuse", "charm", "armor_break"]
 const DISPLAY_NAMES: Dictionary = {
@@ -162,6 +163,7 @@ static func apply_enemy(host: Object, index: int, effect_id: String, duration: f
 	enemies[index] = enemy
 	host.set("enemies", enemies)
 	ElementalSynergyService.on_enemy_status_applied(host, index, key)
+	RelicStatusSynergyService.on_enemy_status_applied(host, index, key)
 	return true
 
 static func tick_enemy(host: Object, index: int, delta: float) -> int:
@@ -271,6 +273,7 @@ static func apply_boss(host: Object, effect_id: String, duration: float, potency
 	boss["status_effects"] = statuses
 	host.set("boss", boss)
 	ElementalSynergyService.on_boss_status_applied(host, key)
+	RelicStatusSynergyService.on_boss_status_applied(host, key)
 	return true
 
 static func tick_boss(host: Object, delta: float) -> void:

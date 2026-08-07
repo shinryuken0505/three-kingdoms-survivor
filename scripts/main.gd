@@ -11,6 +11,7 @@ const PlayerCombatService = preload("res://scripts/systems/player/player_combat_
 const PlayerSignaturePassiveService = preload("res://scripts/systems/player/player_signature_passive_service.gd")
 const StatusEffectService = preload("res://scripts/systems/combat/status_effect_service.gd")
 const ElementalSynergyService = preload("res://scripts/systems/combat/elemental_synergy_service.gd")
+const RelicStatusSynergyService = preload("res://scripts/systems/relic/relic_status_synergy_service.gd")
 const PlayerUpgradeService = preload("res://scripts/systems/player/player_upgrade_service.gd")
 const MerchantPricingService = preload("res://scripts/systems/merchant/merchant_pricing_service.gd")
 const Alpha19BuildRules = preload("res://scripts/systems/build/alpha19_build_rules.gd")
@@ -43,7 +44,7 @@ const EndingManagerScript = preload("res://scripts/systems/ending/ending_manager
 const EndingUIScript = preload("res://scripts/ui/ending_ui.gd")
 const BossLootUIScript = preload("res://scripts/ui/boss_loot_ui.gd")
 const RelicNoticeUIScript = preload("res://scripts/ui/relic_notice_ui.gd")
-const GAME_VERSION: String = "V2.0.0-alpha.54"
+const GAME_VERSION: String = "V2.0.0-alpha.55"
 const VIEW: Vector2 = Vector2(1280.0, 720.0)
 const CENTER: Vector2 = Vector2(640.0, 360.0)
 const WORLD: Rect2 = Rect2(0.0, 0.0, 3200.0, 2200.0)
@@ -454,7 +455,7 @@ func _ready() -> void:
 	identities = GameData.identities()
 	heroes = GameData.heroes()
 	alpha36_37_state = Alpha36RosterProgressionHud.new_state()
-	relic_defs = GameData.relics()
+	relic_defs = RelicStatusSynergyService.install_definitions(GameData.relics())
 	equipment_defs = GameData.equipment()
 	merchant_defs = GameData.merchant_types()
 	skill_defs = PlayerUpgradeService.install_signature_definitions(GameData.skills())
@@ -3566,6 +3567,9 @@ func update_enemies(delta: float) -> void:
 			continue
 		var e: Dictionary = enemies[cursor]
 		var uid: int = int(e.get("uid", -1))
+	amount *= RelicStatusSynergyService.damage_multiplier(self, e, source)
+	RelicStatusSynergyService.apply_named_hero_status(self, "enemy", index, source)
+	e = enemies[index]
 		if processed.has(uid):
 			cursor -= 1
 			continue
@@ -3581,6 +3585,11 @@ func update_enemies(delta: float) -> void:
 			cursor -= 1
 			continue
 		cursor = status_index
+		var relic_status_index: int = RelicStatusSynergyService.tick_enemy(self, cursor, delta)
+		if relic_status_index < 0:
+			cursor -= 1
+			continue
+		cursor = relic_status_index
 		e = enemies[cursor]
 		if float(e["hp"]) <= 0.0:
 			kill_enemy(cursor)
@@ -4181,6 +4190,8 @@ func damage_boss(amount: float, source: String, crit: bool) -> void:
 		StatusEffectService.apply_boss(self, "shock", 2.0, 0.18, 1)
 	if bool(boss_phase_state.get("transitioning", false)):
 		return
+	amount *= RelicStatusSynergyService.damage_multiplier(self, boss, source)
+	RelicStatusSynergyService.apply_named_hero_status(self, "boss", -1, source)
 	var final: float = amount * build_damage_multiplier(source) * equipment_effect("damage_mult", 1.0) * float(history_modifiers.get("player_damage_mult", 1.0))
 	if boss_counter_window > 0.0:
 		final *= Alpha34BossCounterWindow.counter_damage_multiplier(boss_counter_was_break)
@@ -4585,6 +4596,7 @@ func kill_enemy(index: int) -> void:
 	var e: Dictionary = enemies[index]
 	var was_poisoned: bool = float(e["poison"]) > 0.0
 	var was_support_boss: bool = bool(e.get("boss_support", false))
+	RelicStatusSynergyService.on_enemy_killed(self, e)
 	var support_name: String = str(e.get("name", "副將"))
 	var pos: Vector2 = e["pos"]
 	var was_elite: bool = bool(e.get("elite", false))

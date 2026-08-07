@@ -1,6 +1,8 @@
 class_name ElementalSynergyService
 extends RefCounted
 
+const RelicStatusSynergyService = preload("res://scripts/systems/relic/relic_status_synergy_service.gd")
+
 const PHYSICAL_SOURCES: Array[String] = [
 	"slash", "return_blade", "arrow", "needle", "guanyu", "zhangfei", "zhaoyun",
 	"sunjian", "lvlingqi", "taishici", "sunshangxiang", "huangzhong", "lvbu",
@@ -104,7 +106,8 @@ static func _chain_enemy_shock(host: Object, source_index: int) -> void:
 		if distance <= 190.0:
 			candidates.append({"index":index, "distance":distance})
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["distance"]) < float(b["distance"]))
-	var hit_count: int = min(2, candidates.size())
+	var chain_limit: int = 2 + RelicStatusSynergyService.shock_chain_bonus(host)
+	var hit_count: int = min(chain_limit, candidates.size())
 	var target_indices: Array[int] = []
 	for i in range(hit_count):
 		target_indices.append(int(candidates[i].get("index", -1)))
