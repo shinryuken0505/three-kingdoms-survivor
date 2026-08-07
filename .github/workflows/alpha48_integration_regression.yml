@@ -1,60 +1,56 @@
-name: Alpha49 Core Service Integration
+name: Alpha50 Player Combat Handlers
 
 on:
   push:
     branches:
-      - feature/alpha49-core-service-migration
+      - feature/alpha50-player-combat-handlers
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  core-service-integration:
+  player-combat-handlers:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/alpha49-core-service-migration
+          ref: feature/alpha50-player-combat-handlers
           fetch-depth: 0
 
-      - name: Apply Alpha49 migration
-        run: python3 tools/alpha49_migrate.py
+      - name: Apply Alpha50 migration
+        run: python3 tools/alpha50_migrate.py
 
-      - name: Static integration checks
+      - name: Static combat checks
         run: |
           python3 - <<'PY'
           from pathlib import Path
           project = Path('project.godot').read_text(encoding='utf-8')
           main = Path('scripts/main.gd').read_text(encoding='utf-8')
-          if 'V2.0.0-alpha.49' not in project or 'V2.0.0-alpha.49' not in main:
-              raise SystemExit('Alpha.49 version not synchronized')
+          service = Path('scripts/systems/player/player_combat_service.gd').read_text(encoding='utf-8')
+          if 'V2.0.0-alpha.50' not in project or 'V2.0.0-alpha.50' not in main:
+              raise SystemExit('Alpha.50 version not synchronized')
+          for token in ['MeleeArcHandler.execute', 'RangedArrowHandler.execute', 'StrategyOrbHandler.execute']:
+              if token not in service:
+                  raise SystemExit('combat handler not connected: ' + token)
           for path in [
-              'scripts/systems/player/player_combat_service.gd',
-              'scripts/systems/player/player_upgrade_service.gd',
-              'scripts/systems/merchant/merchant_pricing_service.gd',
-              'scripts/systems/hero/hero_skill_handler_registry.gd',
-              'scripts/chapter_manager.gd',
+              'scripts/systems/player/combat_handlers/melee_arc_handler.gd',
+              'scripts/systems/player/combat_handlers/ranged_arrow_handler.gd',
+              'scripts/systems/player/combat_handlers/strategy_orb_handler.gd',
           ]:
               if not Path(path).exists():
                   raise SystemExit('missing ' + path)
-          if 'func perform_auto_attack_legacy()' not in main:
-              raise SystemExit('combat service wrapper missing')
-          if 'PlayerUpgradeService.weighted_pool' not in main:
-              raise SystemExit('upgrade service not connected')
-          if 'MerchantPricingService.relic_price' not in main:
-              raise SystemExit('merchant pricing not connected')
-          print('Alpha.49 static integration checks passed')
+          print('Alpha.50 static combat integration passed')
           PY
 
-      - name: Commit integrated runtime
+      - name: Commit synchronized version
         run: |
           if git diff --quiet; then
-            echo "No integration commit required."
+            echo "No version changes required."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd scripts/systems/hero/alpha40_hero_skill_evolution_runtime.gd scripts/systems/chapter/alpha45_chapter_branch_runtime.gd
-          git commit -m "Alpha.49 connect core services to gameplay"
-          git push origin HEAD:feature/alpha49-core-service-migration
+          git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd
+          git commit -m "Alpha.50 synchronize player combat handlers"
+          git push origin HEAD:feature/alpha50-player-combat-handlers
