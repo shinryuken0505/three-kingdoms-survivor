@@ -1,0 +1,64 @@
+name: Alpha55 Relic Status Synergies
+
+on:
+  push:
+    branches:
+      - feature/alpha55-relic-status-synergy-expansion
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  relic-status-synergies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha55-relic-status-synergy-expansion
+          fetch-depth: 0
+
+      - name: Apply Alpha55 migration
+        run: python3 tools/alpha55_migrate.py
+
+      - name: Static relic status checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          project = Path('project.godot').read_text(encoding='utf-8')
+          main = Path('scripts/main.gd').read_text(encoding='utf-8')
+          status = Path('scripts/systems/combat/status_effect_service.gd').read_text(encoding='utf-8')
+          synergy = Path('scripts/systems/combat/elemental_synergy_service.gd').read_text(encoding='utf-8')
+          relic = Path('scripts/systems/relic/relic_status_synergy_service.gd').read_text(encoding='utf-8')
+          coordinator = Path('scripts/core/alpha48_runtime_coordinator.gd').read_text(encoding='utf-8')
+          for text, label in [(project,'project'), (main,'main'), (coordinator,'coordinator')]:
+              if 'V2.0.0-alpha.55' not in text:
+                  raise SystemExit(label + ' version not synchronized')
+          for token in ['scarlet_flame_talisman', 'five_venom_satchel', 'mystic_ice_jade', 'thunder_command', 'army_break_seal', 'yin_yang_furnace']:
+              if token not in relic:
+                  raise SystemExit('relic definition missing: ' + token)
+          for token in ['RelicStatusSynergyService.install_definitions', 'RelicStatusSynergyService.damage_multiplier', 'RelicStatusSynergyService.on_enemy_killed', 'RelicStatusSynergyService.tick_enemy']:
+              if token not in main:
+                  raise SystemExit('main relic integration missing: ' + token)
+          for token in ['RelicStatusSynergyService.on_enemy_status_applied', 'RelicStatusSynergyService.on_boss_status_applied']:
+              if token not in status:
+                  raise SystemExit('status relic hook missing: ' + token)
+          if 'RelicStatusSynergyService.shock_chain_bonus(host)' not in synergy:
+              raise SystemExit('Thunder Command chain bonus not integrated')
+          for hero in ['"zhangjiao"', '"zhenji"', '"sunshangxiang"']:
+              if hero not in relic:
+                  raise SystemExit('named hero status mapping missing: ' + hero)
+          print('Alpha.55 static relic/status integration passed')
+          PY
+
+      - name: Commit synchronized runtime
+        run: |
+          if git diff --quiet; then
+            echo "No runtime changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add project.godot scripts/main.gd scripts/core/alpha48_runtime_coordinator.gd scripts/systems/combat/status_effect_service.gd scripts/systems/combat/elemental_synergy_service.gd
+          git commit -m "Alpha.55 connect relic status synergies"
+          git push origin HEAD:feature/alpha55-relic-status-synergy-expansion
