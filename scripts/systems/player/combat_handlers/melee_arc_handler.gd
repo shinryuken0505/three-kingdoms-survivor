@@ -59,5 +59,5 @@ static func execute(host: Object, damage: float) -> bool:
 		host.set("zones", zones)
 	if host.has_method("spawn_ring"):
 		host.call("spawn_ring", attack_origin + direction * 24.0, Color8(255, 226, 145), 48.0 + float(arc_lv) * 3.0, 0.24)
-	host.set("screen_shake", max(float(host.get("screen_shake")), 3.2))
+	# 玩家普通近戰攻擊不觸發相機震動；保留 Boss／受擊／重大演出的 shake。
 	return true
