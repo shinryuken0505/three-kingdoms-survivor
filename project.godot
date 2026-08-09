@@ -20,6 +20,7 @@ config/icon="res://assets/icon.png"
 GameEvents="*res://scripts/core/game_event_bus.gd"
 Alpha48RuntimeCoordinator="*res://scripts/core/alpha48_runtime_coordinator.gd"
 PortraitSourceGuard="*res://scripts/core/portrait_source_guard.gd"
+PlayerAttackShakeGuard="*res://scripts/core/player_attack_shake_guard.gd"
 
 [audio]
 
