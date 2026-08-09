@@ -49,6 +49,8 @@ static func perform_auto_attack(host: Object, archetype_id: String, legacy_attac
 			handled = RangedArrowHandler.execute(host, damage)
 		"strategy_orb":
 			handled = StrategyOrbHandler.execute(host, damage)
+		"legacy_rings":
+			handled = false
 		_:
 			handled = false
 	if handled:
@@ -60,7 +62,7 @@ static func perform_auto_attack(host: Object, archetype_id: String, legacy_attac
 
 static func validate() -> Array[String]:
 	var errors: Array[String] = []
-	var supported_modes: Array[String] = ["melee_arc", "ranged_arrow", "strategy_orb"]
+	var supported_modes: Array[String] = ["melee_arc", "ranged_arrow", "strategy_orb", "legacy_rings"]
 	for archetype_id in PlayerArchetypeRegistry.DEFINITIONS.keys():
 		var definition: Dictionary = PlayerArchetypeRegistry.DEFINITIONS[archetype_id] as Dictionary
 		var mode: String = str(definition.get("attack_mode", ""))
