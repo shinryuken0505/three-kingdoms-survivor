@@ -594,7 +594,12 @@ func load_assets() -> void:
 	]:
 		sprite_tex[id] = runtime_texture("res://assets/sprites/%s_default.png" % id)
 	for id in relic_defs:
-		relic_tex[id] = runtime_texture(str(relic_defs[id]["icon"]))
+		var relic_def: Dictionary = relic_defs[id]
+		var relic_icon_path: String = str(relic_def.get("icon", ""))
+		if relic_icon_path == "":
+			push_warning("Relic icon missing: %s" % str(id))
+			relic_icon_path = "res://assets/portraits/placeholder.png"
+		relic_tex[id] = runtime_texture(relic_icon_path)
 	for id in equipment_defs:
 		equipment_tex[id] = runtime_texture(str(equipment_defs[id]["icon"]))
 	for chapter_value in GameData.chapters():
