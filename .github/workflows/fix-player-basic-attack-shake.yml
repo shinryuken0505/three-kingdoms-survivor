@@ -1,0 +1,64 @@
+name: Fix Player Basic Attack Shake
+
+on:
+  push:
+    branches:
+      - feature/alpha57-build-aware-recruitment-ui
+    paths:
+      - .github/workflows/fix-player-basic-attack-shake.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alpha57-build-aware-recruitment-ui
+          fetch-depth: 0
+
+      - name: Remove player basic attack shake at source
+        shell: python
+        run: |
+          from pathlib import Path
+
+          main = Path('scripts/main.gd')
+          text = main.read_text(encoding='utf-8')
+          target = '\t\t\tscreen_shake = max(screen_shake, 3.2)\n'
+          count = text.count(target)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one basic-attack shake line, found {count}')
+          text = text.replace(target, '', 1)
+          main.write_text(text, encoding='utf-8')
+
+          project = Path('project.godot')
+          ptext = project.read_text(encoding='utf-8')
+          ptext = ptext.replace('PlayerAttackShakeGuard="*res://scripts/core/player_attack_shake_guard.gd"\n', '')
+          project.write_text(ptext, encoding='utf-8')
+
+          guard = Path('scripts/core/player_attack_shake_guard.gd')
+          if guard.exists():
+              guard.unlink()
+
+      - name: Verify source shake is gone
+        shell: python
+        run: |
+          from pathlib import Path
+          text = Path('scripts/main.gd').read_text(encoding='utf-8')
+          if 'screen_shake = max(screen_shake, 3.2)' in text:
+              raise SystemExit('Basic attack shake source still exists')
+
+      - name: Commit fix
+        run: |
+          git config user.name "Perltk"
+          git config user.email "shinryuken0505@hotmail.com"
+          git add scripts/main.gd project.godot scripts/core/player_attack_shake_guard.gd || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: remove player basic attack camera shake at source"
+          git push origin HEAD:feature/alpha57-build-aware-recruitment-ui
