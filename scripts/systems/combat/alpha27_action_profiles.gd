@@ -10,6 +10,8 @@ static func player_profile(kind: String) -> Dictionary:
 			return {"duration": 0.52, "windup": 0.34, "active": 0.28, "recover": 0.38}
 		"poison":
 			return {"duration": 0.58, "windup": 0.30, "active": 0.36, "recover": 0.34}
+		"rings":
+			return {"duration": 0.44, "windup": 0.22, "active": 0.38, "recover": 0.30}
 		_:
 			return {"duration": 0.44, "windup": 0.25, "active": 0.40, "recover": 0.35}
 
@@ -24,28 +26,10 @@ static func hero_cast_duration(hero_id: String) -> float:
 	return 1.00
 
 
-static func player_pose(kind: String, progress: float) -> Dictionary:
-	var p: float = clamp(progress, 0.0, 1.0)
-	var windup: float = clamp(p / 0.28, 0.0, 1.0)
-	var strike: float = clamp((p - 0.28) / 0.34, 0.0, 1.0)
-	var recover: float = clamp((p - 0.62) / 0.38, 0.0, 1.0)
-	var lunge: float = 0.0
-	var rotation: float = 0.0
-	var stretch: Vector2 = Vector2.ONE
-	match kind:
-		"blade":
-			lunge = -5.0 * windup + 18.0 * sin(strike * PI) * (1.0 - recover * 0.55)
-			rotation = -0.10 * windup + 0.26 * sin(strike * PI) * (1.0 - recover)
-			stretch = Vector2(1.0 + 0.14 * sin(strike * PI), 1.0 - 0.08 * sin(strike * PI))
-		"bow":
-			lunge = -7.0 * sin(windup * PI * 0.5) + 5.0 * sin(strike * PI)
-			rotation = -0.07 * windup + 0.04 * sin(strike * PI)
-			stretch = Vector2(0.96 + 0.06 * strike, 1.06 - 0.05 * strike)
-		"poison":
-			lunge = -4.0 * windup + 7.0 * sin(strike * PI)
-			rotation = 0.08 * sin(p * TAU)
-			stretch = Vector2(1.0 - 0.05 * sin(strike * PI), 1.0 + 0.10 * sin(strike * PI))
-	return {"lunge": lunge, "rotation": rotation, "stretch": stretch}
+static func player_pose(_kind: String, _progress: float) -> Dictionary:
+	# 玩家基礎攻擊只保留武器／斬擊／投射物特效，不再推動、旋轉或拉伸角色本體。
+	# 高攻速時這些程式化位移會看起來像整個畫面持續震動。
+	return {"lunge": 0.0, "rotation": 0.0, "stretch": Vector2.ONE}
 
 
 static func cast_pose(hero_id: String, progress: float) -> Dictionary:
