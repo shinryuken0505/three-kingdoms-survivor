@@ -4,7 +4,6 @@ extends RefCounted
 const LEGACY_ALIASES: Dictionary = {
 	"hunter":"archer",
 	"poisoner":"strategist",
-	"heroine":"swordsman",
 }
 
 const DEFINITIONS: Dictionary = {
@@ -40,6 +39,17 @@ const DEFINITIONS: Dictionary = {
 		"upgrade_weights":{"melee":0.52,"defense":0.90,"ranged":0.92,"strategy":1.55},
 		"portrait":"res://assets/portraits/player_strategist.png",
 		"sprite":"res://assets/player/strategist.png"
+	},
+	"heroine": {
+		"id":"heroine", "name":"巾幗遊俠", "title":"紅袖環刃",
+		"description":"以雙環連射穿梭敵陣，維持距離並快速收割。",
+		"legacy_base":"heroine",
+		"weapon":"rings", "attack_mode":"legacy_rings",
+		"base_stats":{"max_hp":104.0,"speed":228.0,"damage_mult":1.0,"attack_speed_mult":1.10,"dash_cd_mult":0.90},
+		"starting_skills":["rings"], "passive":"agile_hunt",
+		"upgrade_weights":{"melee":0.65,"defense":0.92,"ranged":1.42,"strategy":0.82},
+		"portrait":"res://assets/portraits/heroine_default.png",
+		"sprite":"res://assets/sprites/heroine_default.png"
 	}
 }
 
