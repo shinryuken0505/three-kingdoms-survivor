@@ -1360,7 +1360,7 @@ func menu_options() -> Array:
 
 
 func identity_order() -> Array:
-	return ["swordsman", "archer", "strategist"]
+	return ["swordsman", "hunter", "poisoner", "heroine"]
 
 
 func handle_menu_key(key: int) -> void:
