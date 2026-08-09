@@ -2260,7 +2260,7 @@ func refresh_skin_asset(hero_id: String) -> void:
 	var sid: String = str(save_data["selected_skins"].get(hero_id, "default"))
 	for skin in skin_defs[hero_id]:
 		if str(skin["id"]) == sid:
-			hero_portrait(str(hero_id)) = runtime_texture(str(skin["portrait"]))
+			portrait_tex[hero_id] = runtime_texture(str(skin["portrait"]))
 			sprite_tex[hero_id] = runtime_texture(str(skin["sprite"]))
 			return
 
@@ -2494,9 +2494,9 @@ func apply_character_art_fallbacks() -> void:
 		var remastered_path: String = "res://assets/portraits_remastered/%s_default.png" % character_id
 		var remastered: Texture2D = runtime_texture(remastered_path)
 		if remastered != null:
-			hero_portrait(str(character_id)) = remastered
+			portrait_tex[str(character_id)] = remastered
 		elif sprite_tex.has(character_id) and sprite_tex[character_id] != null:
-			hero_portrait(str(character_id)) = sprite_tex[character_id]
+			portrait_tex[str(character_id)] = sprite_tex[character_id]
 
 
 func refresh_all_skins() -> void:
