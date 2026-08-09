@@ -3569,9 +3569,6 @@ func update_enemies(delta: float) -> void:
 			continue
 		var e: Dictionary = enemies[cursor]
 		var uid: int = int(e.get("uid", -1))
-	amount *= RelicStatusSynergyService.damage_multiplier(self, e, source)
-	HeroElementalBuildService.apply_named_hero_status(self, "enemy", index, source)
-	e = enemies[index]
 		if processed.has(uid):
 			cursor -= 1
 			continue
