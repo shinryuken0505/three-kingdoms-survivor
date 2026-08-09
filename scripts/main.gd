@@ -554,10 +554,18 @@ func load_assets() -> void:
 	prop_tex.clear()
 	menu_bg = runtime_texture("res://assets/menu_background.png")
 	for id in identities:
-		portrait_tex[id] = runtime_texture(str(identities[id]["portrait"]))
+		var identity_portrait_path: String = str(identities[id]["portrait"])
+		var identity_remastered_path: String = "res://assets/portraits_remastered/%s_default.png" % str(id)
+		if ResourceLoader.exists(identity_remastered_path):
+			identity_portrait_path = identity_remastered_path
+		portrait_tex[id] = runtime_texture(identity_portrait_path)
 		sprite_tex[id] = runtime_texture(str(identities[id]["sprite"]))
 	for id in heroes:
-		portrait_tex[id] = runtime_texture(str(heroes[id]["portrait"]))
+		var hero_portrait_path: String = str(heroes[id]["portrait"])
+		var hero_remastered_path: String = "res://assets/portraits_remastered/%s_default.png" % str(id)
+		if ResourceLoader.exists(hero_remastered_path):
+			hero_portrait_path = hero_remastered_path
+		portrait_tex[id] = runtime_texture(hero_portrait_path)
 		sprite_tex[id] = runtime_texture(str(heroes[id]["sprite"]))
 	var boss_ids: Array[String] = []
 	for chapter_value in GameData.chapters():
@@ -574,7 +582,11 @@ func load_assets() -> void:
 	if trial_boss != "" and not boss_ids.has(trial_boss):
 		boss_ids.append(trial_boss)
 	for id in boss_ids:
-		portrait_tex[id] = runtime_texture("res://assets/portraits/%s_default.png" % id)
+		var boss_portrait_path: String = "res://assets/portraits/%s_default.png" % id
+		var boss_remastered_path: String = "res://assets/portraits_remastered/%s_default.png" % id
+		if ResourceLoader.exists(boss_remastered_path):
+			boss_portrait_path = boss_remastered_path
+		portrait_tex[id] = runtime_texture(boss_portrait_path)
 		sprite_tex[id] = runtime_texture("res://assets/sprites/%s_default.png" % id)
 	apply_character_art_fallbacks()
 	for id in [
@@ -2497,10 +2509,9 @@ func apply_character_art_fallbacks() -> void:
 	]
 	for character_id in fallback_ids:
 		var remastered_path: String = "res://assets/portraits_remastered/%s_default.png" % character_id
-		var remastered: Texture2D = runtime_texture(remastered_path)
-		if remastered != null:
-			portrait_tex[str(character_id)] = remastered
-		elif sprite_tex.has(character_id) and sprite_tex[character_id] != null:
+		if ResourceLoader.exists(remastered_path):
+			portrait_tex[str(character_id)] = runtime_texture(remastered_path)
+		elif not portrait_tex.has(character_id) and sprite_tex.has(character_id) and sprite_tex[character_id] != null:
 			portrait_tex[str(character_id)] = sprite_tex[character_id]
 
 
@@ -8389,51 +8400,69 @@ func weapon_display_name(id: String) -> String:
 
 func draw_character_select_screen() -> void:
 	draw_rect(Rect2(Vector2.ZERO, VIEW), Color8(24, 31, 31), true)
-	draw_text("選擇亂世出身", Vector2(60, 70), 38, Color8(239, 214, 152), true)
+	draw_text("選擇亂世出身", Vector2(48, 66), 34, Color8(239, 214, 152), true)
 	draw_text(
 		"%s模式｜難度：%s" % [("史傳" if chosen_mode == "story" else "演武試煉"), difficulty_name()],
-		Vector2(1030, 64),
-		20,
+		Vector2(1010, 62),
+		18,
 		Color8(190, 206, 195),
 		true
 	)
 	var order: Array = identity_order()
+	var card_margin: float = 32.0
+	var card_gap: float = 12.0
+	var card_width: float = (VIEW.x - card_margin * 2.0 - card_gap * 3.0) / 4.0
+	var card_height: float = 510.0
 	for i in range(order.size()):
 		var id: String = str(order[i])
+		if not identities.has(id):
+			push_warning("Identity definition missing: %s" % id)
+			continue
 		var data: Dictionary = identities[id]
-		var r: Rect2 = Rect2(48 + i * 401, 122, 376, 500)
+		var r: Rect2 = Rect2(card_margin + i * (card_width + card_gap), 112, card_width, card_height)
 		draw_panel(
 			r,
 			Color(0.07, 0.08, 0.08, 0.96) if i != select_index else Color(0.19, 0.15, 0.085, 0.98),
 			Color8(229, 200, 128) if i == select_index else Color8(100, 105, 98),
 			3.0 if i == select_index else 1.5
 		)
-		var pr: Rect2 = Rect2(r.position + Vector2(22, 22), Vector2(332, 240))
+		var content_x: float = r.position.x + 16.0
+		var content_w: float = r.size.x - 32.0
+		var pr: Rect2 = Rect2(Vector2(content_x, r.position.y + 16.0), Vector2(content_w, 220.0))
 		draw_texture_contain(hero_portrait(identity_visual_id(id)), pr)
-		draw_text(data["name"], r.position + Vector2(22, 300), 27, data.get("color", Color8(222, 203, 150)), true)
+		draw_text(data["name"], Vector2(content_x, r.position.y + 272.0), 23, data.get("color", Color8(222, 203, 150)), true)
 		draw_text(
 			"生命 %d　傷害 %d" % [data["hp"], data["damage"]],
-			r.position + Vector2(22, 336),
-			17,
+			Vector2(content_x, r.position.y + 307.0),
+			15,
 			Color8(216, 218, 205)
 		)
 		draw_wrapped(
 			data["desc"],
-			Rect2(r.position + Vector2(22, 355), Vector2(332, 66)),
-			16,
+			Rect2(Vector2(content_x, r.position.y + 327.0), Vector2(content_w, 82.0)),
+			13,
 			Color8(199, 205, 196),
-			22.0
+			19.0
 		)
-		draw_text("專屬：%s" % PlayerUpgradeService.passive_name(id), r.position + Vector2(22, 438), 15, Color8(169, 213, 185), true, HORIZONTAL_ALIGNMENT_LEFT, 332)
+		draw_text(
+			"專屬：%s" % PlayerUpgradeService.passive_name(id),
+			Vector2(content_x, r.position.y + 438.0),
+			12,
+			Color8(169, 213, 185),
+			true,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			content_w
+		)
 		draw_text(
 			"武器：%s" % weapon_display_name(str(data["weapon"])),
-			r.position + Vector2(22, 476),
-			17,
+			Vector2(content_x, r.position.y + 478.0),
+			14,
 			Color8(232, 207, 145),
-			true
+			true,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			content_w
 		)
-	draw_text("方向鍵選擇　Enter／Space開始　Esc返回", Vector2(60, 684), 17, Color8(191, 198, 192))
-
+	draw_text("方向鍵選擇　Enter／Space開始　Esc返回", Vector2(48, 684), 16, Color8(191, 198, 192))
 
 func draw_game_screen() -> void:
 	draw_world()
