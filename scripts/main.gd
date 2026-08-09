@@ -3209,7 +3209,6 @@ func perform_auto_attack_legacy() -> void:
 				}
 			)
 			spawn_ring(attack_origin + dir * 24.0, Color8(255, 226, 145), 46.0, 0.24)
-			screen_shake = max(screen_shake, 3.2)
 		"bow":
 			play_combat_motif("arrow", rng.randf_range(0.94, 1.02))
 			var count: int = 1 + int(player["multishot"])
