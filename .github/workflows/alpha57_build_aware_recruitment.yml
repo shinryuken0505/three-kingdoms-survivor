@@ -21,6 +21,36 @@ jobs:
       - name: Apply Alpha57 migration
         run: python3 tools/alpha57_migrate.py
 
+      - name: Remove player basic attack camera shake at source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          main_path = Path('scripts/main.gd')
+          main = main_path.read_text(encoding='utf-8')
+          target = '\t\t\tscreen_shake = max(screen_shake, 3.2)\n'
+          count = main.count(target)
+          if count > 1:
+              raise SystemExit(f'unexpected duplicate basic-attack shake lines: {count}')
+          if count == 1:
+              main = main.replace(target, '', 1)
+              main_path.write_text(main, encoding='utf-8')
+
+          project_path = Path('project.godot')
+          project = project_path.read_text(encoding='utf-8')
+          project = project.replace('PlayerAttackShakeGuard="*res://scripts/core/player_attack_shake_guard.gd"\n', '')
+          project_path.write_text(project, encoding='utf-8')
+
+          guard = Path('scripts/core/player_attack_shake_guard.gd')
+          if guard.exists():
+              guard.unlink()
+
+          verify = main_path.read_text(encoding='utf-8')
+          if 'screen_shake = max(screen_shake, 3.2)' in verify:
+              raise SystemExit('basic attack camera shake still present')
+          print('Player basic attack camera shake removed at source')
+          PY
+
       - name: Static recruitment checks
         run: |
           python3 - <<'PY'
@@ -48,6 +78,8 @@ jobs:
                   raise SystemExit('main recruitment integration missing: ' + token)
           if '與目前戰術搭配良好' not in service:
               raise SystemExit('natural affinity hint missing')
+          if 'screen_shake = max(screen_shake, 3.2)' in main:
+              raise SystemExit('player basic attack shake regression detected')
           print('Alpha.57 static build-aware recruitment integration passed')
           PY
 
@@ -59,6 +91,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add project.godot scripts/main.gd scripts/game_data.gd scripts/core/alpha48_runtime_coordinator.gd scripts/systems/hero/hero_content_registry.gd
-          git commit -m "Alpha.57 connect build-aware recruitment"
+          git add -A project.godot scripts/main.gd scripts/game_data.gd scripts/core/alpha48_runtime_coordinator.gd scripts/core/player_attack_shake_guard.gd scripts/systems/hero/hero_content_registry.gd
+          git commit -m "fix: remove player basic attack camera shake at source"
           git push origin HEAD:feature/alpha57-build-aware-recruitment-ui
