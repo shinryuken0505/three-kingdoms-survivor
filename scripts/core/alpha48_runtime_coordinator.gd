@@ -1,4 +1,3 @@
-class_name Alpha48RuntimeCoordinator
 extends Node
 
 # Alpha.48: 收斂 Alpha.36~47 的 Autoload 設定。
