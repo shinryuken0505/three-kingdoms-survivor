@@ -29,6 +29,12 @@ var health_warnings: Array[String] = []
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Autoload _ready() 執行時 SceneTree root 仍可能正在建立子節點；
+	# 立即 root.add_child() 會在 Godot 4.7 觸發「Parent node is busy setting up children」。
+	# 延後整批安裝，確保 root 已結束初始化，再做健康檢查。
+	call_deferred("_install_modules_deferred")
+
+func _install_modules_deferred() -> void:
 	install_modules()
 	call_deferred("run_health_check")
 
