@@ -47,7 +47,6 @@ const CANONICAL_PORTRAITS: Dictionary = {
 	"xiahoudun": "res://assets/portraits/xiahou_dun.png",
 	"xiahouen": "res://assets/portraits/xiahou_en.png",
 	"xiahouyuan": "res://assets/portraits/xiahou_yuan.png",
-	"xuchu": "res://assets/portraits/xuchu_default.png",
 	"xuhuang": "res://assets/portraits/xu_huang.png",
 	"yuanshao": "res://assets/portraits/yuan_shao.png",
 	"zhangbao": "res://assets/portraits/zhang_bao.png",
