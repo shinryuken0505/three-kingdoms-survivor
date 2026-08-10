@@ -43,9 +43,19 @@ jobs:
           godot --headless --path . --editor --quit 2>&1 | tee godot-import.log
 
       - name: Run project self-test
+        shell: bash
         run: |
-          set -o pipefail
+          set +e
           timeout 180s godot --headless --path . -- --self-test 2>&1 | tee godot-self-test.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            reason=$(grep -E 'DEMO6_SELF_TEST_FAIL|Alpha\.58 regression failure|SCRIPT ERROR|ERROR:' godot-self-test.log | tail -n 12 | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+            if [ -z "$reason" ]; then
+              reason="Godot self-test exited with status $status; inspect godot-self-test.log artifact."
+            fi
+            echo "::error title=Godot self-test failed::$reason"
+            exit "$status"
+          fi
 
       - name: Upload diagnostic logs
         if: always()
