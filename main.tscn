@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource path="res://scripts/main.gd" type="Script" id="1_main"]
 [ext_resource path="res://scripts/ui/status_effect_hud_layer.gd" type="Script" id="2_status_hud"]
@@ -21,9 +21,13 @@
 [ext_resource path="res://scripts/systems/combat/boss_phase_runtime_layer.gd" type="Script" id="24_boss_phase"]
 [ext_resource path="res://scripts/systems/world/history_consequence_runtime_layer.gd" type="Script" id="25_history_consequence"]
 [ext_resource path="res://scripts/systems/world/chapter_mission_runtime_layer.gd" type="Script" id="26_chapter_mission"]
+[ext_resource path="res://scripts/core/alpha58_regression_guard.gd" type="Script" id="27_alpha58_guard"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
+
+[node name="Alpha58RegressionGuard" type="Node" parent="."]
+script = ExtResource("27_alpha58_guard")
 
 [node name="StatusEffectHudLayer" type="Node2D" parent="."]
 script = ExtResource("2_status_hud")
