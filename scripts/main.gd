@@ -7789,7 +7789,9 @@ func run_self_test() -> void:
 		var signature_found: bool = false
 		for zone_value in zones:
 			var zone: Dictionary = zone_value
-			if str(zone.get("kind", "")) == "hero_effect" and str(zone.get("hero", "")) == hero_id:
+			# Alpha.58：名將可以使用直線、箭雨、風牆等專屬形態，不再強迫全部生成通用 hero_effect。
+			# 每輪測試前 zones 都已清空，因此本次新生成的 hero_* 視覺即可證明該名將有專屬演出。
+			if str(zone.get("kind", "")).begins_with("hero_"):
 				signature_found = true
 				break
 		if not signature_found or str(hero_cast_flash.get("id", "")) != hero_id:
