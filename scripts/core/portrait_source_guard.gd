@@ -5,9 +5,8 @@ extends Node
 ## main.gd 目前仍保留舊 _default / portraits_remastered 載入相容邏輯；
 ## 本 Guard 在主場景 ready 後統一覆寫 portrait_tex，避免新 UI 或舊存檔路徑
 ## 把已完成的正式立繪蓋回舊版。僅處理外觀，不改角色資料、能力或存檔。
-## 少數角色若在 Alpha.57 後已重新確認新版 _default 圖，則以該最新確認檔為準。
-## Alpha.58 起若正式檔存在但解碼失敗，不再把粉黑 Missing Texture 蓋到玩家畫面，
-## 而是保留 main.gd 已成功載入的同角色安全舊圖並留下明確警告。
+## Alpha.58 起若正式 PNG 檔存在但內容損壞，不呼叫 runtime_texture()，避免把粉黑
+## Missing Texture 寫入玩家畫面與 asset_errors；保留 main.gd 已成功載入的同角色安全圖。
 
 const CANONICAL_PORTRAITS: Dictionary = {
 	"swordsman": "res://assets/portraits/player_swordsman.png",
@@ -65,6 +64,28 @@ func _ready() -> void:
 	call_deferred("_apply_to_current_scene")
 
 
+func _raw_png_signature_valid(path: String) -> bool:
+	# Editor / CI checkout can inspect the original source bytes directly. In exported PCK builds the raw
+	# source may be remapped away; in that case ResourceLoader remains the authority.
+	if not FileAccess.file_exists(path):
+		return ResourceLoader.exists(path)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null or file.get_length() < 8:
+		return false
+	var signature: PackedByteArray = file.get_buffer(8)
+	return (
+		signature.size() == 8
+		and signature[0] == 0x89
+		and signature[1] == 0x50
+		and signature[2] == 0x4E
+		and signature[3] == 0x47
+		and signature[4] == 0x0D
+		and signature[5] == 0x0A
+		and signature[6] == 0x1A
+		and signature[7] == 0x0A
+	)
+
+
 func _apply_to_current_scene() -> void:
 	await get_tree().process_frame
 	var scene: Node = get_tree().current_scene
@@ -85,6 +106,10 @@ func _apply_to_current_scene() -> void:
 		var path: String = str(CANONICAL_PORTRAITS[raw_id])
 		if not ResourceLoader.exists(path) and not FileAccess.file_exists(path):
 			push_warning("PortraitSourceGuard: canonical portrait missing; keeping current portrait: %s -> %s" % [character_id, path])
+			retained_fallbacks += 1
+			continue
+		if path.to_lower().ends_with(".png") and not _raw_png_signature_valid(path):
+			push_warning("PortraitSourceGuard: invalid PNG source; keeping current portrait: %s -> %s" % [character_id, path])
 			retained_fallbacks += 1
 			continue
 		var candidate: Variant = scene.call("runtime_texture", path)
