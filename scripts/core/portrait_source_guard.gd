@@ -1,18 +1,17 @@
 extends Node
 
-## Alpha.57 正式立繪來源防回歸。
+## Alpha.58 正式立繪來源防回歸。
 ##
 ## main.gd 目前仍保留舊 _default / portraits_remastered 載入相容邏輯；
 ## 本 Guard 在主場景 ready 後統一覆寫 portrait_tex，避免新 UI 或舊存檔路徑
 ## 把已完成的正式立繪蓋回舊版。僅處理外觀，不改角色資料、能力或存檔。
 ## 少數角色若在 Alpha.57 後已重新確認新版 _default 圖，則以該最新確認檔為準。
+## Alpha.58 起若正式檔存在但解碼失敗，不再把粉黑 Missing Texture 蓋到玩家畫面，
+## 而是保留 main.gd 已成功載入的同角色安全舊圖並留下明確警告。
 
 const CANONICAL_PORTRAITS: Dictionary = {
-	# 主角：優先使用 Alpha.57 已完成的新主角立繪。
 	"swordsman": "res://assets/portraits/player_swordsman.png",
 	"hunter": "res://assets/portraits/player_archer.png",
-
-	# 名將 / Boss：以已確認的正式立繪為唯一來源，禁止回退到 remastered 或角色小人。
 	"caimao": "res://assets/portraits/caimao_default.png",
 	"caiwenji": "res://assets/portraits/cai_wenji.png",
 	"caocao": "res://assets/portraits/cao_cao.png",
@@ -63,7 +62,6 @@ const CANONICAL_PORTRAITS: Dictionary = {
 
 
 func _ready() -> void:
-	# Autoload 的 ready 早於 main scene；延後一個 frame，確保 main.load_assets() 已完成。
 	call_deferred("_apply_to_current_scene")
 
 
@@ -76,21 +74,30 @@ func _apply_to_current_scene() -> void:
 		push_warning("PortraitSourceGuard: current scene has no runtime_texture().")
 		return
 	var portrait_value: Variant = scene.get("portrait_tex")
-	if not (portrait_value is Dictionary):
+	if not portrait_value is Dictionary:
 		push_warning("PortraitSourceGuard: current scene has no portrait_tex dictionary.")
 		return
 	var portrait_tex: Dictionary = portrait_value as Dictionary
 	var applied: int = 0
+	var retained_fallbacks: int = 0
 	for raw_id in CANONICAL_PORTRAITS.keys():
 		var character_id: String = str(raw_id)
 		var path: String = str(CANONICAL_PORTRAITS[raw_id])
 		if not ResourceLoader.exists(path) and not FileAccess.file_exists(path):
-			# 不以舊圖靜默替代；缺檔時保留目前值並留下明確警告。
-			push_warning("PortraitSourceGuard: canonical portrait missing: %s -> %s" % [character_id, path])
+			push_warning("PortraitSourceGuard: canonical portrait missing; keeping current portrait: %s -> %s" % [character_id, path])
+			retained_fallbacks += 1
 			continue
-		portrait_tex[character_id] = scene.call("runtime_texture", path)
+		var candidate: Variant = scene.call("runtime_texture", path)
+		var asset_errors_value: Variant = scene.get("asset_errors")
+		var decode_failed: bool = asset_errors_value is Array and (asset_errors_value as Array).has(path)
+		var texture_valid: bool = candidate is Texture2D and (candidate as Texture2D).get_width() > 32 and (candidate as Texture2D).get_height() > 32
+		if decode_failed or not texture_valid:
+			push_warning("PortraitSourceGuard: canonical portrait decode failed; keeping current portrait: %s -> %s" % [character_id, path])
+			retained_fallbacks += 1
+			continue
+		portrait_tex[character_id] = candidate as Texture2D
 		applied += 1
 	scene.set("portrait_tex", portrait_tex)
 	if scene.has_method("queue_redraw"):
 		scene.call("queue_redraw")
-	print("PortraitSourceGuard: applied %d canonical Alpha.57 portraits." % applied)
+	print("PortraitSourceGuard: applied %d canonical portraits; retained %d safe fallback(s)." % [applied, retained_fallbacks])
