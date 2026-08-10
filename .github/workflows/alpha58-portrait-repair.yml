@@ -1,4 +1,4 @@
-name: Alpha58 Portrait Repair
+name: Alpha58 Stability Repair
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   repair:
-    name: Normalize recoverable portraits
+    name: Normalize portraits and apply guarded source repairs
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -25,14 +25,17 @@ jobs:
           python -m pip install --quiet pillow
           python tools/normalize_portrait_assets.py --write
 
-      - name: Commit repaired portrait bytes
+      - name: Align hero visual self-test contract
+        run: python tools/alpha58_update_selftest_contract.py
+
+      - name: Commit guarded repairs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/portraits/*.png
+          git add assets/portraits/*.png scripts/main.gd
           if git diff --cached --quiet; then
-            echo "No recoverable portrait changes to commit."
+            echo "No Alpha.58 stabilization changes to commit."
             exit 0
           fi
-          git commit -m "fix: normalize recoverable portrait assets [portrait-repair]"
+          git commit -m "fix: apply Alpha58 stability repairs [stability-repair]"
           git push origin HEAD:${GITHUB_REF_NAME}
