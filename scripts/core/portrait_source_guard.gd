@@ -5,17 +5,18 @@ extends Node
 ## main.gd 目前仍保留舊 _default / portraits_remastered 載入相容邏輯；
 ## 本 Guard 在主場景 ready 後統一覆寫 portrait_tex，避免新 UI 或舊存檔路徑
 ## 把已完成的正式立繪蓋回舊版。僅處理外觀，不改角色資料、能力或存檔。
+## 少數角色若在 Alpha.57 後已重新確認新版 _default 圖，則以該最新確認檔為準。
 
 const CANONICAL_PORTRAITS: Dictionary = {
 	# 主角：優先使用 Alpha.57 已完成的新主角立繪。
 	"swordsman": "res://assets/portraits/player_swordsman.png",
 	"hunter": "res://assets/portraits/player_archer.png",
 
-	# 名將 / Boss：正式檔名採 snake_case，禁止回退到 *_default 或 remastered。
-	"caimao": "res://assets/portraits/cai_mao.png",
+	# 名將 / Boss：以已確認的正式立繪為唯一來源，禁止回退到 remastered 或角色小人。
+	"caimao": "res://assets/portraits/caimao_default.png",
 	"caiwenji": "res://assets/portraits/cai_wenji.png",
 	"caocao": "res://assets/portraits/cao_cao.png",
-	"caoren": "res://assets/portraits/cao_ren.png",
+	"caoren": "res://assets/portraits/caoren_default.png",
 	"chengong": "res://assets/portraits/chen_gong.png",
 	"daqiao": "res://assets/portraits/da_qiao.png",
 	"diaochan": "res://assets/portraits/diao_chan.png",
