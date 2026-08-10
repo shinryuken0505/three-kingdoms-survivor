@@ -1,1 +1,0 @@
-Alpha.58 stability: zhuge_liang.png is temporarily sourced from the valid zhugeliang_default.png blob because the current formal file is corrupt. Replace with the approved redrawn original when it is recovered.
