@@ -7797,15 +7797,10 @@ func run_self_test() -> void:
 		player_shots.clear()
 		hero_cast_flash.clear()
 		try_trigger_hero(hero_id, true)
-		# Alpha.58：專屬演出可以是 ring/line/arrow 等視覺 zone，也可以是專屬投射物。
-		# 每輪測試前 zones / player_shots 均清空，因此只檢查本次施放產生的新演出。
-		var signature_found: bool = not player_shots.is_empty()
-		for zone_value in zones:
-			var zone: Dictionary = zone_value
-			var zone_kind: String = str(zone.get("kind", ""))
-			if zone_kind.begins_with("hero_") or zone_kind.ends_with("_visual"):
-				signature_found = true
-				break
+		# Alpha.58：名將專屬演出不限定 zone 命名。甄姬的 frost、貂蟬的 ring_visual、
+		# 曹操的 hero_line_visual 與各式專屬投射物都屬有效施放輸出。
+		# 每輪測試前 zones / player_shots 均已清空，因此任何新輸出都只可能來自本次名將施放。
+		var signature_found: bool = not zones.is_empty() or not player_shots.is_empty()
 		if not signature_found or str(hero_cast_flash.get("id", "")) != hero_id:
 			self_test_fail("名將專屬技能特效失效：%s" % hero_id)
 			return
