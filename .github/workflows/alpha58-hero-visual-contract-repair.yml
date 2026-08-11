@@ -1,0 +1,52 @@
+name: Alpha58 Hero Visual Contract Repair
+
+on:
+  push:
+    branches:
+      - feature/alpha58-stability-regression-guard
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    name: Patch hero visual self-test contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Patch self-test
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/main.gd')
+          text = path.read_text(encoding='utf-8')
+          old = '''\t\tzones.clear()\n\t\thero_cast_flash.clear()\n\t\ttry_trigger_hero(hero_id, true)\n\t\tvar signature_found: bool = false\n\t\tfor zone_value in zones:\n\t\t\tvar zone: Dictionary = zone_value\n\t\t\t# Alpha.58：名將可以使用直線、箭雨、風牆等專屬形態，不再強迫全部生成通用 hero_effect。\n\t\t\t# 每輪測試前 zones 都已清空，因此本次新生成的 hero_* 視覺即可證明該名將有專屬演出。\n\t\t\tif str(zone.get("kind", "")).begins_with("hero_"):\n\t\t\t\tsignature_found = true\n\t\t\t\tbreak\n'''
+          new = '''\t\tzones.clear()\n\t\tplayer_shots.clear()\n\t\thero_cast_flash.clear()\n\t\ttry_trigger_hero(hero_id, true)\n\t\t# Alpha.58：專屬演出可以是 ring/line/arrow 等視覺 zone，也可以是專屬投射物。\n\t\t# 每輪測試前 zones / player_shots 均清空，因此只檢查本次施放產生的新演出。\n\t\tvar signature_found: bool = not player_shots.is_empty()\n\t\tfor zone_value in zones:\n\t\t\tvar zone: Dictionary = zone_value\n\t\t\tvar zone_kind: String = str(zone.get("kind", ""))\n\t\t\tif zone_kind.begins_with("hero_") or zone_kind.ends_with("_visual"):\n\t\t\t\tsignature_found = true\n\t\t\t\tbreak\n'''
+          if new in text:
+              print('Alpha.58 hero visual contract already aligned.')
+          elif old in text:
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+              print('Aligned Alpha.58 hero visual self-test contract.')
+          else:
+              raise SystemExit('Expected Alpha.58 hero visual self-test block not found; refusing broad edit.')
+          PY
+
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          if git diff --cached --quiet; then
+            echo "No source change to commit."
+            exit 0
+          fi
+          git commit -m "test: accept custom hero visual signatures"
+          git push origin HEAD:${GITHUB_REF_NAME}
