@@ -5686,6 +5686,16 @@ func try_trigger_hero(hid: String, manual: bool) -> void:
 	var dir: Vector2 = (target - center).normalized()
 	if dir.length_squared() < 0.01:
 		dir = Vector2.RIGHT
+	# Alpha.58：成功施放任何主將技能都先建立統一 cast flash。
+	# 專屬技能視覺仍可使用 hero_line_visual / hero_arrow_visual 等自己的形態，
+	# 不再依賴通用 spawn_hero_signature_effect() 才能顯示頭上喊招與施放姿態。
+	var cast_duration: float = Alpha27ActionProfiles.hero_cast_duration(hid)
+	hero_cast_flash = {
+		"id": hid,
+		"life": cast_duration,
+		"max_life": cast_duration,
+		"pos": center,
+	}
 	match hid:
 		"liubei":
 			var count: int = 3 + (1 if lv >= 3 else 0)
