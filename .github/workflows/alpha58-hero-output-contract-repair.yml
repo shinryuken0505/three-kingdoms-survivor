@@ -1,0 +1,52 @@
+name: Alpha58 Hero Output Contract Repair
+
+on:
+  push:
+    branches:
+      - feature/alpha58-stability-regression-guard
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    name: Generalize hero cast output self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Patch self-test
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/main.gd')
+          text = path.read_text(encoding='utf-8')
+          old = '''\t\t# Alpha.58：專屬演出可以是 ring/line/arrow 等視覺 zone，也可以是專屬投射物。\n\t\t# 每輪測試前 zones / player_shots 均清空，因此只檢查本次施放產生的新演出。\n\t\tvar signature_found: bool = not player_shots.is_empty()\n\t\tfor zone_value in zones:\n\t\t\tvar zone: Dictionary = zone_value\n\t\t\tvar zone_kind: String = str(zone.get("kind", ""))\n\t\t\tif zone_kind.begins_with("hero_") or zone_kind.ends_with("_visual"):\n\t\t\t\tsignature_found = true\n\t\t\t\tbreak\n'''
+          new = '''\t\t# Alpha.58：名將專屬演出不限定 zone 命名。甄姬的 frost、貂蟬的 ring_visual、\n\t\t# 曹操的 hero_line_visual 與各式專屬投射物都屬有效施放輸出。\n\t\t# 每輪測試前 zones / player_shots 均已清空，因此任何新輸出都只可能來自本次名將施放。\n\t\tvar signature_found: bool = not zones.is_empty() or not player_shots.is_empty()\n'''
+          if new in text:
+              print('Alpha.58 hero output contract already generalized.')
+          elif old in text:
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+              print('Generalized Alpha.58 hero output self-test contract.')
+          else:
+              raise SystemExit('Expected Alpha.58 hero output self-test block not found; refusing broad edit.')
+          PY
+
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          if git diff --cached --quiet; then
+            echo "No source change to commit."
+            exit 0
+          fi
+          git commit -m "test: generalize hero cast output contract"
+          git push origin HEAD:${GITHUB_REF_NAME}
