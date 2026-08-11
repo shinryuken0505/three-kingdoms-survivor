@@ -75,7 +75,6 @@ const HUD_RELIC_RECT: Rect2 = Rect2(12.0, 12.0, 324.0, 132.0)
 const HUD_HEADER_RECT: Rect2 = Rect2(360.0, 12.0, 680.0, 72.0)
 const HUD_BOSS_RECT: Rect2 = Rect2(390.0, 91.0, 620.0, 66.0)
 const HUD_MINIMAP_RECT: Rect2 = Rect2(1088.0, 12.0, 174.0, 116.0)
-const HUD_PLAYER_RECT: Rect2 = Rect2(84.0, 630.0, 202.0, 66.0)
 const HUD_HERO_RAIL_RECT: Rect2 = Rect2(76.0, 624.0, 1128.0, 76.0)
 const HUD_MESSAGE_Y: float = 580.0
 
@@ -7980,7 +7979,6 @@ func run_self_test() -> void:
 	if (
 		HUD_RELIC_RECT.intersects(HUD_HEADER_RECT)
 		or HUD_HEADER_RECT.intersects(HUD_MINIMAP_RECT)
-		or HUD_PLAYER_RECT.intersects(HUD_HERO_RAIL_RECT)
 	):
 		self_test_fail("HUD安全區互相重疊")
 		return
