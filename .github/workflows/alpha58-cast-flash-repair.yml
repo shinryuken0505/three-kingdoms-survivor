@@ -1,0 +1,52 @@
+name: Alpha58 Hero Cast Flash Repair
+
+on:
+  push:
+    branches:
+      - feature/alpha58-stability-regression-guard
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    name: Patch successful hero casts to always publish flash
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Patch main.gd
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/main.gd')
+          text = path.read_text(encoding='utf-8')
+          old = '''\tvar dir: Vector2 = (target - center).normalized()\n\tif dir.length_squared() < 0.01:\n\t\tdir = Vector2.RIGHT\n\tmatch hid:\n'''
+          new = '''\tvar dir: Vector2 = (target - center).normalized()\n\tif dir.length_squared() < 0.01:\n\t\tdir = Vector2.RIGHT\n\t# Alpha.58：成功施放任何主將技能都先建立統一 cast flash。\n\t# 專屬技能視覺仍可使用 hero_line_visual / hero_arrow_visual 等自己的形態，\n\t# 不再依賴通用 spawn_hero_signature_effect() 才能顯示頭上喊招與施放姿態。\n\tvar cast_duration: float = Alpha27ActionProfiles.hero_cast_duration(hid)\n\thero_cast_flash = {\n\t\t"id": hid,\n\t\t"life": cast_duration,\n\t\t"max_life": cast_duration,\n\t\t"pos": center,\n\t}\n\tmatch hid:\n'''
+          if new in text:
+              print('Alpha.58 hero cast flash repair already applied.')
+          elif old in text:
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+              print('Applied Alpha.58 hero cast flash repair.')
+          else:
+              raise SystemExit('Expected try_trigger_hero insertion point not found; refusing broad edit.')
+          PY
+
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main.gd
+          if git diff --cached --quiet; then
+            echo "No source change to commit."
+            exit 0
+          fi
+          git commit -m "fix: publish hero cast flash for custom skill visuals"
+          git push origin HEAD:${GITHUB_REF_NAME}
