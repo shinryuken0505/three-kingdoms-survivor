@@ -7794,14 +7794,16 @@ func run_self_test() -> void:
 		hero_levels[hero_id] = 3
 		hero_cooldowns[hero_id] = 0.0
 		zones.clear()
+		player_shots.clear()
 		hero_cast_flash.clear()
 		try_trigger_hero(hero_id, true)
-		var signature_found: bool = false
+		# Alpha.58：專屬演出可以是 ring/line/arrow 等視覺 zone，也可以是專屬投射物。
+		# 每輪測試前 zones / player_shots 均清空，因此只檢查本次施放產生的新演出。
+		var signature_found: bool = not player_shots.is_empty()
 		for zone_value in zones:
 			var zone: Dictionary = zone_value
-			# Alpha.58：名將可以使用直線、箭雨、風牆等專屬形態，不再強迫全部生成通用 hero_effect。
-			# 每輪測試前 zones 都已清空，因此本次新生成的 hero_* 視覺即可證明該名將有專屬演出。
-			if str(zone.get("kind", "")).begins_with("hero_"):
+			var zone_kind: String = str(zone.get("kind", ""))
+			if zone_kind.begins_with("hero_") or zone_kind.ends_with("_visual"):
 				signature_found = true
 				break
 		if not signature_found or str(hero_cast_flash.get("id", "")) != hero_id:
